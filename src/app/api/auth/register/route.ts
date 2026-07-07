@@ -34,18 +34,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 })
   }
 
-  const existing = db.prepare("SELECT id FROM users WHERE email = ? OR username = ?").get(email, username)
+  const existing = await db.prepare("SELECT id FROM users WHERE email = ? OR username = ?").get(email, username)
   if (existing) {
     return NextResponse.json({ error: "An account with this email or username already exists." }, { status: 409 })
   }
 
   const passwordHash = await hashPassword(password)
 
-  const result = db.prepare(
+  const result = await db.prepare(
     "INSERT INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, ?)"
   ).run(email, username, passwordHash, "member")
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO members (
       firstName,
       lastName,

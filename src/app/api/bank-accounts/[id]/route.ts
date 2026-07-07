@@ -8,7 +8,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { id } = await params
 
-  const account = db.prepare(
+  const account = await db.prepare(
     "SELECT id FROM linked_accounts WHERE id = ? AND userId = ?"
   ).get(Number(id), session.id)
 
@@ -16,8 +16,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Account not found." }, { status: 404 })
   }
 
-  db.prepare("DELETE FROM transactions WHERE accountId = ?").run(Number(id))
-  db.prepare("DELETE FROM linked_accounts WHERE id = ?").run(Number(id))
+  await db.prepare("DELETE FROM transactions WHERE accountId = ?").run(Number(id))
+  await db.prepare("DELETE FROM linked_accounts WHERE id = ?").run(Number(id))
 
   return NextResponse.json({ success: true })
 }

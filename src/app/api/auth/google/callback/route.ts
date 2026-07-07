@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/login?error=google_email", request.url))
     }
 
-    let user = db
+    let user = await db
       .prepare("SELECT id, email, username, role FROM users WHERE email = ?")
       .get(googleEmail) as { id: number; email: string; username: string | null; role: string } | undefined
 
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       const passwordHash = await hashPassword(randomPassword)
       const baseUsername = googleEmail.split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "").toLowerCase()
 
-      const result = db
+      const result = await db
         .prepare("INSERT INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, 'user')")
         .run(googleEmail, baseUsername, passwordHash)
 

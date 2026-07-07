@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const messages = db.prepare(`
+  const messages = await db.prepare(`
     SELECT * FROM contact_messages ORDER BY createdAt DESC
   `).all()
 
@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "Message ID required" }, { status: 400 })
 
-  db.prepare("UPDATE contact_messages SET read = ? WHERE id = ?").run(read ? 1 : 0, id)
+  await db.prepare("UPDATE contact_messages SET read = ? WHERE id = ?").run(read ? 1 : 0, id)
 
   return NextResponse.json({ success: true })
 }
@@ -27,7 +27,7 @@ export async function DELETE(request: NextRequest) {
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "Message ID required" }, { status: 400 })
 
-  db.prepare("DELETE FROM contact_messages WHERE id = ?").run(parseInt(id, 10))
+  await db.prepare("DELETE FROM contact_messages WHERE id = ?").run(parseInt(id, 10))
 
   return NextResponse.json({ success: true })
 }

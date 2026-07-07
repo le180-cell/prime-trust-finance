@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 })
   }
 
-  const row = db
+  const row = await db
     .prepare("SELECT userId, expiresAt FROM reset_tokens WHERE token = ?")
     .get(token) as { userId: number; expiresAt: string } | undefined
 
@@ -18,14 +18,14 @@ export async function POST(request: Request) {
   }
 
   if (new Date(row.expiresAt) < new Date()) {
-    db.prepare("DELETE FROM reset_tokens WHERE token = ?").run(token)
+    await db.prepare("DELETE FROM reset_tokens WHERE token = ?").run(token)
     return NextResponse.json({ error: "Reset token has expired." }, { status: 400 })
   }
 
   const passwordHash = await hashPassword(password)
-  db.prepare("UPDATE users SET passwordHash = ? WHERE id = ?").run(passwordHash, row.userId)
-  db.prepare("DELETE FROM reset_tokens WHERE token = ?").run(token)
-  db.prepare("DELETE FROM reset_tokens WHERE userId = ?").run(row.userId)
+  await db.prepare("UPDATE users SET passwordHash = ? WHERE id = ?").run(passwordHash, row.userId)
+  await db.prepare("DELETE FROM reset_tokens WHERE token = ?").run(token)
+  await db.prepare("DELETE FROM reset_tokens WHERE userId = ?").run(row.userId)
 
   return NextResponse.json({ success: true })
 }

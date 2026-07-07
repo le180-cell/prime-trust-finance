@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 
-function getMode(): string {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'bank_api_mode'").get() as { value: string } | undefined
+async function getMode(): Promise<string> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = 'bank_api_mode'").get() as { value: string } | undefined
   return row?.value || "simulation"
 }
 
@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params
 
-  const account = db.prepare(
+  const account = await db.prepare(
     "SELECT id, bankName, accountNumber FROM linked_accounts WHERE id = ? AND userId = ?"
   ).get(Number(id), session.id) as { id: number; bankName: string; accountNumber: string } | undefined
 
@@ -21,8 +21,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Account not found." }, { status: 404 })
   }
 
-  if (getMode() === "live") {
-    const config = db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
+  if ((await getMode()) === "live") {
+    const config = await db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
     const settings: Record<string, string> = {}
     for (const r of config) settings[r.key] = r.value
 
@@ -34,7 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     // return NextResponse.json(data)
   }
 
-  const transactions = db.prepare(
+  const transactions = await db.prepare(
     "SELECT * FROM transactions WHERE accountId = ? ORDER BY date DESC LIMIT 50"
   ).all(Number(id))
 

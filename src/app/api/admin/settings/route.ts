@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized." }, { status: 403 })
   }
 
-  const rows = db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
+  const rows = await db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
   const settings: Record<string, string> = {}
   for (const r of rows) settings[r.key] = r.value
 
@@ -26,12 +26,12 @@ export async function PUT(request: Request) {
     "INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt"
   )
 
-  const tx = db.transaction(() => {
+  const tx = db.transaction(async () => {
     for (const [key, value] of Object.entries(body)) {
-      if (typeof value === "string") upsert.run(key, value)
+      if (typeof value === "string") await upsert.run(key, value)
     }
   })
-  tx()
+  await tx()
 
   return NextResponse.json({ success: true })
 }

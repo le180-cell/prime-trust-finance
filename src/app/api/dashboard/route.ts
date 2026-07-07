@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const member = db
+  const member = await db
     .prepare("SELECT * FROM members WHERE email = ?")
     .get(session.email) as Record<string, unknown> | undefined
 

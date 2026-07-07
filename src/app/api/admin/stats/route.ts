@@ -4,16 +4,16 @@ import { db } from "@/lib/db"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const memberCount = (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'").get() as { count: number }).count
-  const adminCount = (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number }).count
+  const memberCount = (await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'").get() as { count: number }).count
+  const adminCount = (await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number }).count
   const totalUsers = memberCount + adminCount
 
-  const accountCount = (db.prepare("SELECT COUNT(*) as count FROM linked_accounts").get() as { count: number }).count
-  const txCount = (db.prepare("SELECT COUNT(*) as count FROM transactions").get() as { count: number }).count
-  const totalSavings = (db.prepare("SELECT COALESCE(SUM(balance), 0) as total FROM linked_accounts").get() as { total: number }).total
-  const messageCount = (db.prepare("SELECT COUNT(*) as count FROM contact_messages WHERE read = 0").get() as { count: number }).count
+  const accountCount = (await db.prepare("SELECT COUNT(*) as count FROM linked_accounts").get() as { count: number }).count
+  const txCount = (await db.prepare("SELECT COUNT(*) as count FROM transactions").get() as { count: number }).count
+  const totalSavings = (await db.prepare("SELECT COALESCE(SUM(balance), 0) as total FROM linked_accounts").get() as { total: number }).total
+  const messageCount = (await db.prepare("SELECT COUNT(*) as count FROM contact_messages WHERE read = 0").get() as { count: number }).count
 
-  const recentMembers = db.prepare(`
+  const recentMembers = await db.prepare(`
     SELECT u.id, u.email, u.role, u.createdAt,
            m.firstName, m.lastName, m.phone
     FROM users u
@@ -22,7 +22,7 @@ export async function GET() {
     LIMIT 5
   `).all() as Array<Record<string, unknown>>
 
-  const recentTransactions = db.prepare(`
+  const recentTransactions = await db.prepare(`
     SELECT t.id, t.type, t.amount, t.description, t.status, t.date,
            la.accountName, la.accountNumber, la.bankName,
            u.email as userEmail
@@ -33,7 +33,7 @@ export async function GET() {
     LIMIT 5
   `).all() as Array<Record<string, unknown>>
 
-  const recentMessages = db.prepare(`
+  const recentMessages = await db.prepare(`
     SELECT id, name, email, subject, message, read, createdAt
     FROM contact_messages
     ORDER BY createdAt DESC

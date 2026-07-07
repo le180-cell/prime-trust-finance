@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   let users
   if (search) {
-    users = db.prepare(`
+    users = await db.prepare(`
       SELECT u.id, u.email, u.username, u.role, u.createdAt,
              m.firstName, m.lastName, m.phone, m.district, m.occupation, m.memberSince
       FROM users u
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       ORDER BY u.createdAt DESC
     `).all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
   } else {
-    users = db.prepare(`
+    users = await db.prepare(`
       SELECT u.id, u.email, u.username, u.role, u.createdAt,
              m.firstName, m.lastName, m.phone, m.district, m.occupation, m.memberSince
       FROM users u
@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
     `).all()
   }
 
-  const result = (users as Array<Record<string, unknown>>).map((u) => ({
+  const result = await Promise.all((users as Array<Record<string, unknown>>).map(async (u) => ({
     ...u,
-    accountCount: (db.prepare("SELECT COUNT(*) as count FROM linked_accounts WHERE userId = ?").get(u.id) as { count: number }).count,
-  }))
+    accountCount: ((await db.prepare("SELECT COUNT(*) as count FROM linked_accounts WHERE userId = ?").get(u.id)) as { count: number }).count,
+  })))
 
   return NextResponse.json({ members: result })
 }

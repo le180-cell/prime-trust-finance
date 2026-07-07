@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 
-function getMode(): string {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'bank_api_mode'").get() as { value: string } | undefined
+async function getMode(): Promise<string> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = 'bank_api_mode'").get() as { value: string } | undefined
   return row?.value || "simulation"
 }
 
@@ -11,12 +11,12 @@ export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const accounts = db.prepare(
+  const accounts = await db.prepare(
     "SELECT * FROM linked_accounts WHERE userId = ? ORDER BY createdAt DESC"
   ).all(session.id)
 
-  if (getMode() === "live" && accounts.length > 0) {
-    const settings = db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
+  if ((await getMode()) === "live" && accounts.length > 0) {
+    const settings = await db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[]
     const config: Record<string, string> = {}
     for (const r of settings) config[r.key] = r.value
 
@@ -31,9 +31,9 @@ export async function GET() {
   return NextResponse.json(accounts)
 }
 
-function seedMockTransactions(accountId: number) {
+async function seedMockTransactions(accountId: number) {
   const balance = Math.floor(Math.random() * 50000000) + 500000
-  db.prepare("UPDATE linked_accounts SET balance = ? WHERE id = ?").run(balance, accountId)
+  await db.prepare("UPDATE linked_accounts SET balance = ? WHERE id = ?").run(balance, accountId)
 
   const txns = [
     { type: "credit", amount: Math.floor(balance * 0.4), description: "Salary Deposit", ref: "SAL", daysAgo: 3 },
@@ -51,7 +51,7 @@ function seedMockTransactions(accountId: number) {
   for (const tx of txns) {
     const d = new Date()
     d.setDate(d.getDate() - tx.daysAgo)
-    stmt.run(accountId, tx.type, tx.amount, tx.description, tx.ref, d.toISOString().split("T")[0])
+    await stmt.run(accountId, tx.type, tx.amount, tx.description, tx.ref, d.toISOString().split("T")[0])
   }
 }
 
@@ -65,12 +65,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bank name, account name, and account number are required." }, { status: 400 })
   }
 
-  const result = db.prepare(
+  const result = await db.prepare(
     "INSERT INTO linked_accounts (userId, bankName, accountName, accountNumber, accountType, balance) VALUES (?, ?, ?, ?, ?, 0)"
   ).run(session.id, bankName, accountName, accountNumber, accountType || "checking")
 
-  if (getMode() === "simulation") {
-    seedMockTransactions(result.lastInsertRowid as number)
+  if ((await getMode()) === "simulation") {
+    await seedMockTransactions(result.lastInsertRowid as number)
   }
 
   return NextResponse.json({ id: result.lastInsertRowid, success: true }, { status: 201 })

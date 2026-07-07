@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Username and password are required." }, { status: 400 })
   }
 
-  const user = db.prepare("SELECT id, email, username, passwordHash, role FROM users WHERE email = ? OR username = ?").get(identifier, identifier) as
+  const user = await db.prepare("SELECT id, email, username, passwordHash, role FROM users WHERE email = ? OR username = ?").get(identifier, identifier) as
     | { id: number; email: string; username: string | null; passwordHash: string; role: string }
     | undefined
 

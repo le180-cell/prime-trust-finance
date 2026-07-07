@@ -18,9 +18,9 @@ export async function getSession() {
   const payload = await verifyToken(token)
   if (!payload) return null
 
-  const user = db.prepare("SELECT id, email, username, role FROM users WHERE id = ?").get(payload.userId) as
+  const user = await db.prepare("SELECT id, email, username, role FROM users WHERE id = ?").get(payload.userId) as
     | { id: number; email: string; username: string | null; role: string }
-    | undefined
+    | null
   if (!user) return null
   return { id: user.id, email: user.email, username: user.username, role: user.role }
 }

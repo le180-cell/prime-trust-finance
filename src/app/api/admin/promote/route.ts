@@ -6,7 +6,7 @@ export async function POST() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(session.id)
+  await db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(session.id)
 
   return NextResponse.json({ success: true, message: "You are now an admin. Log out and log back in." })
 }

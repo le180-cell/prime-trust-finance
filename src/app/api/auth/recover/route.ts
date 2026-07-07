@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email or username is required." }, { status: 400 })
   }
 
-  const user = db
+  const user = await db
     .prepare("SELECT id, email FROM users WHERE email = ? OR username = ?")
     .get(value, value) as { id: number; email: string } | undefined
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const token = crypto.randomBytes(32).toString("hex")
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
-    db.prepare("INSERT INTO reset_tokens (userId, token, expiresAt) VALUES (?, ?, ?)").run(
+    await db.prepare("INSERT INTO reset_tokens (userId, token, expiresAt) VALUES (?, ?, ?)").run(
       user.id,
       token,
       expiresAt,

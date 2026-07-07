@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Name, email, and message are required." }, { status: 400 })
   }
 
-  const stmt = db.prepare(
+  const stmt = await db.prepare(
     "INSERT INTO contact_messages (name, email, subject, message) VALUES (?, ?, ?, ?)"
   )
   stmt.run(name, email, subject || "", message)
