@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { verifyToken, getAuthCookieName } from "@/lib/auth-token"
+import { getAuthCookieName } from "@/lib/auth-token"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get(getAuthCookieName())?.value
-  const payload = token ? await verifyToken(token) : null
 
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
-    if (!payload) {
+    if (!token) {
       const loginUrl = new URL("/login", request.url)
       loginUrl.searchParams.set("redirect", pathname)
       return NextResponse.redirect(loginUrl)
     }
-    if (pathname.startsWith("/admin") && payload.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url))
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1])) as { role?: string }
+      if (pathname.startsWith("/admin") && payload.role !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", request.url))
+      }
+    } catch {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("redirect", pathname)
+      return NextResponse.redirect(loginUrl)
     }
   }
 
