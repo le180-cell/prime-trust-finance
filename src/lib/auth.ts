@@ -15,7 +15,7 @@ export async function getSession() {
   const cookieStore = await cookies()
   const token = cookieStore.get(getAuthCookieName())?.value
   if (!token) return null
-  const payload = verifyToken(token)
+  const payload = await verifyToken(token)
   if (!payload) return null
 
   const user = db.prepare("SELECT id, email, username, role FROM users WHERE id = ?").get(payload.userId) as

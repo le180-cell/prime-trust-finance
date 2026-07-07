@@ -81,7 +81,7 @@ export async function GET(request: Request) {
       user = { id: result.lastInsertRowid as number, email: googleEmail, username: baseUsername, role: "user" }
     }
 
-    const token = signToken({ userId: user.id, email: user.email, role: user.role })
+    const token = await signToken({ userId: user.id, email: user.email, role: user.role })
     response.cookies.set(getAuthCookieName(), token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

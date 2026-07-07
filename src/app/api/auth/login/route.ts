@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid username or password." }, { status: 401 })
   }
 
-  const token = signToken({ userId: user.id, email: user.email, role: user.role })
+  const token = await signToken({ userId: user.id, email: user.email, role: user.role })
 
   const response = NextResponse.json({ success: true, user: { id: user.id, email: user.email, username: user.username, role: user.role } })
   response.cookies.set("ias_token", token, {

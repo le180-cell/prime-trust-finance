@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     nationalIdDocument || null,
   )
 
-  const token = signToken({ userId: result.lastInsertRowid as number, email, role: "member" })
+  const token = await signToken({ userId: result.lastInsertRowid as number, email, role: "member" })
 
   const response = NextResponse.json({ success: true, user: { id: result.lastInsertRowid, email, username, role: "member" } }, { status: 201 })
   response.cookies.set("ias_token", token, {

@@ -2,10 +2,10 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { verifyToken, getAuthCookieName } from "@/lib/auth-token"
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get(getAuthCookieName())?.value
-  const payload = token ? verifyToken(token) : null
+  const payload = token ? await verifyToken(token) : null
 
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     if (!payload) {
