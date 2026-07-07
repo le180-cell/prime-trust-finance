@@ -18,9 +18,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
-        if (!data.user || data.user.role !== "admin") router.push("/login")
+        if (!data.user) router.push("/login")
+        else if (data.user.role !== "admin") router.push("/dashboard")
       })
-      .catch(() => router.push("/login"))
+      .catch(() => {})
   }, [router])
 
   return (
