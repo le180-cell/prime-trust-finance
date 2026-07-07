@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 import {
   Users, HandCoins, PiggyBank, ArrowUpCircle, Activity, DollarSign,
   FileText, ShieldCheck, RefreshCw, TrendingUp, UserPlus, FileDown,
@@ -127,10 +128,10 @@ const activityFeed = [
 ]
 
 const quickActions = [
-  { label: "Add Member", icon: UserPlus, color: "bg-[#0B3C5D] hover:bg-[#0B3C5D]/90" },
-  { label: "New Loan", icon: HandCoins, color: "bg-[#16A34A] hover:bg-[#16A34A]/90" },
-  { label: "Generate Report", icon: FileText, color: "bg-[#F4B400] hover:bg-[#F4B400]/90" },
-  { label: "View Analytics", icon: TrendingUp, color: "bg-[#0B3C5D] hover:bg-[#0B3C5D]/90" },
+  { label: "Add Member", icon: UserPlus, color: "bg-[#0B3C5D] hover:bg-[#0B3C5D]/90", href: "/admin/members" },
+  { label: "New Loan", icon: HandCoins, color: "bg-[#16A34A] hover:bg-[#16A34A]/90", href: "/admin/loans" },
+  { label: "Generate Report", icon: FileText, color: "bg-[#F4B400] hover:bg-[#F4B400]/90", href: "/admin/reports" },
+  { label: "View Analytics", icon: TrendingUp, color: "bg-[#0B3C5D] hover:bg-[#0B3C5D]/90", href: "/admin/reports" },
 ]
 
 const statCardsConfig = [
@@ -478,15 +479,16 @@ export default function AdminDashboard() {
         {quickActions.map((action) => {
           const Icon = action.icon
           return (
-            <button
+            <Link
               key={action.label}
+              href={action.href}
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all active:scale-95 shadow-sm",
                 action.color
               )}
             >
               <Icon className="h-4 w-4" /> {action.label}
-            </button>
+            </Link>
           )
         })}
       </motion.div>
