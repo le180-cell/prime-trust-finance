@@ -2,17 +2,24 @@
 
 import { useState, useEffect, ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "@/contexts/ThemeContext"
 import Sidebar from "@/components/admin/sidebar"
 import Topnav from "@/components/admin/topnav"
+import BottomNav from "@/components/admin/BottomNav"
 import CommandPalette from "@/components/admin/command-palette"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const { toggleTheme, theme } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -24,33 +31,32 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       .catch(() => {})
   }, [router])
 
+  const marginLeft = isDesktop ? (sidebarCollapsed ? 72 : 260) : 0
+  const contentPadding = isDesktop ? "pt-16 pb-6" : "pt-12 pb-16"
+
   return (
-    <div className="admin-body flex min-h-screen">
+    <div className="admin-body flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
-
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
 
       <div
         className="flex flex-1 flex-col min-w-0 transition-all duration-300"
-        style={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
+        style={{ marginLeft }}
       >
         <Topnav
           onSearchOpen={() => setCommandOpen(true)}
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
-        <main className="flex-1 p-4 lg:p-6 pt-20">
+        <main className={`flex-1 px-2 sm:px-4 lg:px-6 ${contentPadding} max-w-full overflow-x-hidden`}>
           {children}
         </main>
       </div>
 
+      <BottomNav />
       <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   )
