@@ -1,0 +1,94 @@
+CREATE TABLE IF NOT EXISTS services (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT 'default',
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS testimonials (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT '',
+  quote TEXT NOT NULL,
+  rating INTEGER NOT NULL DEFAULT 5,
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS news_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  excerpt TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  image TEXT DEFAULT NULL,
+  published INTEGER NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS statistics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT NOT NULL,
+  value INTEGER NOT NULL DEFAULT 0,
+  suffix TEXT NOT NULL DEFAULT '',
+  icon TEXT NOT NULL DEFAULT 'default',
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS partners (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  logo TEXT DEFAULT NULL,
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  firstName TEXT NOT NULL,
+  lastName TEXT NOT NULL,
+  username TEXT DEFAULT NULL,
+  gender TEXT DEFAULT NULL,
+  dateOfBirth TEXT DEFAULT NULL,
+  nationalId TEXT DEFAULT NULL,
+  email TEXT NOT NULL UNIQUE,
+  phone TEXT DEFAULT NULL,
+  district TEXT DEFAULT NULL,
+  sector TEXT DEFAULT NULL,
+  cell TEXT DEFAULT NULL,
+  village TEXT DEFAULT NULL,
+  occupation TEXT DEFAULT NULL,
+  employer TEXT DEFAULT NULL,
+  monthlyIncome TEXT DEFAULT NULL,
+  maritalStatus TEXT DEFAULT NULL,
+  securityQuestion TEXT DEFAULT NULL,
+  profilePhoto TEXT DEFAULT NULL,
+  nationalIdDocument TEXT DEFAULT NULL,
+  memberSince TEXT NOT NULL DEFAULT (datetime('now')),
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  subject TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL,
+  read INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  username TEXT DEFAULT NULL,
+  passwordHash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',
+  createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL;
