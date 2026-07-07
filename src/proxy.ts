@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getAuthCookieName } from "@/lib/auth-token"
 
+function base64UrlDecode(str: string) {
+  str = str.replace(/-/g, "+").replace(/_/g, "/")
+  while (str.length % 4) str += "="
+  return atob(str)
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get(getAuthCookieName())?.value
@@ -14,7 +20,7 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      const payload = JSON.parse(atob(token.split(".")[1])) as { role?: string }
+      const payload = JSON.parse(base64UrlDecode(token.split(".")[1])) as { role?: string }
       if (pathname.startsWith("/admin") && payload.role !== "admin") {
         return NextResponse.redirect(new URL("/dashboard", request.url))
       }
