@@ -14,11 +14,6 @@ const sectionLabelByLocale: Record<string, { navigation: string; preferences: st
   rw: { navigation: "Urugendo", preferences: "Amahitamo", actions: "Ibikorwa" },
 }
 
-const overlayVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-}
-
 const drawerVariants = {
   hidden: { x: "100%" },
   visible: { x: 0, transition: { type: "spring" as const, damping: 28, stiffness: 300 } },
@@ -151,49 +146,37 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {/* Mobile drawer */}
+      {/* Mobile full-screen drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            key="overlay"
-            variants={overlayVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-        {mobileOpen && (
-          <motion.div
-            key="drawer"
+            key="mobile-drawer"
             variants={drawerVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed top-0 right-0 bottom-0 z-50 flex w-[85vw] max-w-sm flex-col bg-white lg:hidden shadow-2xl"
+            className="fixed inset-0 z-[70] flex flex-col bg-white lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Mobile navigation"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white font-bold shadow-md">
-                  <span className="text-[10px] leading-none">IAS</span>
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <a href="#home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white font-bold shadow-lg">
+                  <span className="text-xs leading-none">IAS</span>
                 </div>
-                <span className="text-base font-bold text-primary font-heading">IAS</span>
-              </div>
+                <span className="text-xl font-bold tracking-tight text-primary font-heading">IAS</span>
+              </a>
               <button onClick={() => setMobileOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
                 aria-label="Close menu">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
               <div className="mb-8">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.navigation}</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.navigation}</p>
                 <div className="space-y-1">
                   {navLabels.map((label, i) => {
                     const isActive = activeSection === navLinkHrefs[i]
@@ -201,10 +184,10 @@ export default function Navbar() {
                       <a key={label} href={navLinkHrefs[i]} onClick={() => setMobileOpen(false)}
                         className={`flex items-center gap-3 rounded-xl px-4 transition-all duration-200 min-h-[48px] ${
                           isActive
-                            ? "bg-gradient-to-r from-primary/8 to-primary/3 font-semibold text-primary"
+                            ? "bg-gradient-to-r from-primary/10 to-primary/5 font-semibold text-primary"
                             : "text-gray-700 hover:bg-gray-50 font-medium"
                         }`}>
-                        {isActive && <span className="h-4 w-1 rounded-full bg-primary flex-shrink-0" />}
+                        {isActive && <span className="h-4 w-1 shrink-0 rounded-full bg-primary" />}
                         <span className={`${isActive ? "" : "ml-4"}`}>{label}</span>
                       </a>
                     )
@@ -213,7 +196,7 @@ export default function Navbar() {
               </div>
 
               <div className="mb-8">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.preferences}</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.preferences}</p>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px]">
                     <span className="text-sm font-medium text-gray-700">Language</span>
@@ -247,7 +230,7 @@ export default function Navbar() {
               </div>
 
               <div>
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.actions}</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.actions}</p>
                 <div className="space-y-3">
                   <a href="/login" onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary transition-all active:scale-[0.98] hover:bg-primary/5 min-h-[48px]">
