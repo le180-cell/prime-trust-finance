@@ -154,129 +154,114 @@ export default function Navbar() {
       {/* Mobile drawer */}
       <AnimatePresence>
         {mobileOpen && (
-          <>
-            {/* Overlay */}
-            <motion.div
-              key="overlay"
-              variants={overlayVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
-              onClick={() => setMobileOpen(false)}
-            />
-
-            {/* Drawer panel */}
-            <motion.div
-              key="drawer"
-              variants={drawerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="fixed top-0 right-0 bottom-0 z-50 flex w-[85vw] max-w-sm flex-col bg-white lg:hidden shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Mobile navigation"
-            >
-              {/* Drawer header */}
-              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white font-bold shadow-md">
-                    <span className="text-[10px] leading-none">IAS</span>
-                  </div>
-                  <span className="text-base font-bold text-primary font-heading">IAS</span>
+          <motion.div
+            key="overlay"
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+        {mobileOpen && (
+          <motion.div
+            key="drawer"
+            variants={drawerVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed top-0 right-0 bottom-0 z-50 flex w-[85vw] max-w-sm flex-col bg-white lg:hidden shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white font-bold shadow-md">
+                  <span className="text-[10px] leading-none">IAS</span>
                 </div>
-                <button onClick={() => setMobileOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
-                  aria-label="Close menu">
-                  <X className="h-5 w-5" />
-                </button>
+                <span className="text-base font-bold text-primary font-heading">IAS</span>
+              </div>
+              <button onClick={() => setMobileOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
+                aria-label="Close menu">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="mb-8">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.navigation}</p>
+                <div className="space-y-1">
+                  {navLabels.map((label, i) => {
+                    const isActive = activeSection === navLinkHrefs[i]
+                    return (
+                      <a key={label} href={navLinkHrefs[i]} onClick={() => setMobileOpen(false)}
+                        className={`flex items-center gap-3 rounded-xl px-4 transition-all duration-200 min-h-[48px] ${
+                          isActive
+                            ? "bg-gradient-to-r from-primary/8 to-primary/3 font-semibold text-primary"
+                            : "text-gray-700 hover:bg-gray-50 font-medium"
+                        }`}>
+                        {isActive && <span className="h-4 w-1 rounded-full bg-primary flex-shrink-0" />}
+                        <span className={`${isActive ? "" : "ml-4"}`}>{label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Scrollable content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6">
-                {/* Section: Navigation */}
-                <div className="mb-8">
-                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.navigation}</p>
-                  <div className="space-y-1">
-                    {navLabels.map((label, i) => {
-                      const isActive = activeSection === navLinkHrefs[i]
-                      return (
-                        <a
-                          key={label}
-                          href={navLinkHrefs[i]}
-                          onClick={() => setMobileOpen(false)}
-                          className={`flex items-center gap-3 rounded-xl px-4 transition-all duration-200 min-h-[48px] ${
-                            isActive
-                              ? "bg-gradient-to-r from-primary/8 to-primary/3 font-semibold text-primary"
-                              : "text-gray-700 hover:bg-gray-50 font-medium"
-                          }`}
-                        >
-                          {isActive && <span className="h-4 w-1 rounded-full bg-primary flex-shrink-0" />}
-                          <span className={`${isActive ? "" : "ml-4"}`}>{label}</span>
-                        </a>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Section: Preferences */}
-                <div className="mb-8">
-                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.preferences}</p>
-                  <div className="space-y-3">
-                    {/* Language selector */}
-                    <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px]">
-                      <span className="text-sm font-medium text-gray-700">Language</span>
-                      <div className="flex gap-1.5">
-                        {(["en", "fr", "rw"] as const).map((l) => (
-                          <button key={l} onClick={() => setLocale(l)}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                              locale === l
-                                ? "bg-primary text-white shadow-sm"
-                                : "bg-white text-gray-500 border border-gray-200 hover:border-primary/30"
-                            }`}>
-                            {l.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
+              <div className="mb-8">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.preferences}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px]">
+                    <span className="text-sm font-medium text-gray-700">Language</span>
+                    <div className="flex gap-1.5">
+                      {(["en", "fr", "rw"] as const).map((l) => (
+                        <button key={l} onClick={() => setLocale(l)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                            locale === l
+                              ? "bg-primary text-white shadow-sm"
+                              : "bg-white text-gray-500 border border-gray-200 hover:border-primary/30"
+                          }`}>
+                          {l.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
-
-                    {/* Theme toggle */}
-                    <button onClick={toggleTheme}
-                      className="flex w-full items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px] transition-colors hover:bg-gray-100">
-                      <span className="text-sm font-medium text-gray-700">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-                      <div className={`flex h-7 w-12 items-center rounded-full p-0.5 transition-colors ${theme === "light" ? "bg-gray-300" : "bg-primary"}`}>
-                        <motion.div
-                          animate={{ x: theme === "light" ? 0 : 20 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm"
-                        >
-                          {theme === "light" ? <Moon className="h-3.5 w-3.5 text-gray-600" /> : <Sun className="h-3.5 w-3.5 text-accent" />}
-                        </motion.div>
-                      </div>
-                    </button>
                   </div>
-                </div>
 
-                {/* Section: Actions */}
-                <div>
-                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.actions}</p>
-                  <div className="space-y-3">
-                    <a href="/login" onClick={() => setMobileOpen(false)}
-                      className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary transition-all active:scale-[0.98] hover:bg-primary/5 min-h-[48px]">
-                      {t.nav.memberLogin}
-                    </a>
-                    <a href="/register" onClick={() => setMobileOpen(false)}
-                      className="btn-primary flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg active:scale-[0.98] min-h-[48px]">
-                      {t.nav.becomeMember}
-                      <ChevronRight className="h-4 w-4" />
-                    </a>
-                  </div>
+                  <button onClick={toggleTheme}
+                    className="flex w-full items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px] transition-colors hover:bg-gray-100">
+                    <span className="text-sm font-medium text-gray-700">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                    <div className={`flex h-7 w-12 items-center rounded-full p-0.5 transition-colors ${theme === "light" ? "bg-gray-300" : "bg-primary"}`}>
+                      <motion.div
+                        animate={{ x: theme === "light" ? 0 : 20 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm">
+                        {theme === "light" ? <Moon className="h-3.5 w-3.5 text-gray-600" /> : <Sun className="h-3.5 w-3.5 text-accent" />}
+                      </motion.div>
+                    </div>
+                  </button>
                 </div>
               </div>
-            </motion.div>
-          </>
+
+              <div>
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.actions}</p>
+                <div className="space-y-3">
+                  <a href="/login" onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary transition-all active:scale-[0.98] hover:bg-primary/5 min-h-[48px]">
+                    {t.nav.memberLogin}
+                  </a>
+                  <a href="/register" onClick={() => setMobileOpen(false)}
+                    className="btn-primary flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg active:scale-[0.98] min-h-[48px]">
+                    {t.nav.becomeMember}
+                    <ChevronRight className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </header>
