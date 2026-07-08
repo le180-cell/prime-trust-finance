@@ -13,12 +13,14 @@ import News from "@/sections/News"
 import Partners from "@/sections/Partners"
 import FAQ from "@/sections/FAQ"
 import CTA from "@/sections/CTA"
+import MobileHome from "./MobileHome"
 
 export default function Home() {
   return (
     <>
       <Navbar />
-      <main>
+      <MobileHome />
+      <main className="hidden lg:block">
         <Hero />
         <Statistics />
         <Services />
