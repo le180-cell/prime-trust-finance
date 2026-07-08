@@ -14,6 +14,7 @@ interface DbWrapper {
   execMany(sqls: string[]): Promise<void>
   transaction<T>(fn: (...args: unknown[]) => T): (...args: unknown[]) => Promise<T>
   close(): void
+  _reconnect?(): void
 }
 
 /* ─── Local better-sqlite3 wrapper ─── */
@@ -22,11 +23,18 @@ function createLocalDb(): DbWrapper {
   const Database = require('better-sqlite3')
   const fs = require('fs')
   const dbPath = process.env.VERCEL === "1" ? "/tmp/data.db" : path.join(process.cwd(), 'db', 'data.db')
-  const dir = path.dirname(dbPath)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  const d = new Database(dbPath)
-  d.pragma('journal_mode = WAL')
-  d.pragma('foreign_keys = ON')
+
+  let d: any = null
+
+  function open() {
+    const dir = path.dirname(dbPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    d = new Database(dbPath)
+    d.pragma('journal_mode = WAL')
+    d.pragma('foreign_keys = ON')
+  }
+
+  open()
 
   return {
     prepare(sql: string) {
@@ -55,7 +63,8 @@ function createLocalDb(): DbWrapper {
         return Promise.resolve(result)
       }
     },
-    close() { d.close() },
+    close() { if (d) { d.close(); d = null } },
+    _reconnect() { if (d) d.close(); open() },
   }
 }
 
@@ -386,32 +395,50 @@ async function seedData(db: DbWrapper) {
 
 const globalForDb = globalThis as unknown as { db: DbWrapper }
 
-function initDb(): DbWrapper {
+async function initDbInternal(d: DbWrapper): Promise<DbWrapper> {
   const useTurso = !!(process.env.TURSO_DB_URL)
-  const d = useTurso ? createTursoDb() : createLocalDb()
-  ;(async () => {
-    const fs = require('fs')
+  const fs = require('fs')
+
+  if (!useTurso && process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL === '1') {
     const blobAvailable = await initBlobStore()
-
-    if (blobAvailable && process.env.VERCEL === '1') {
+    if (blobAvailable) {
       const loaded = await loadDbFromBlob(fs)
-      if (!loaded) {
-        // First-ever startup on this blob store — create fresh and seed
-        await d.execMany(createTableStatements)
-        await migrateSchema(d)
-        await seedData(d)
-        await saveDbToBlob()
+      if (loaded) {
+        // Blob data written to /tmp/data.db — reopen connection to pick it up
+        if (typeof d._reconnect === 'function') d._reconnect()
+        return d
       }
-      return
+      // First-ever startup — create fresh, seed, save to blob
+      await d.execMany(createTableStatements)
+      await migrateSchema(d)
+      await seedData(d)
+      await saveDbToBlob()
+      return d
     }
+  }
 
-    await d.execMany(createTableStatements)
-    await migrateSchema(d)
-    await seedData(d)
-  })().catch((e) => { console.error('DB init error:', e) })
+  await d.execMany(createTableStatements)
+  await migrateSchema(d)
+  await seedData(d)
   return d
 }
 
-export const db = globalForDb.db ?? initDb()
+// Set globalForDb.db IMMEDIATELY with initial connection (synchronous)
+const initialDb = (() => {
+  const useTurso = !!(process.env.TURSO_DB_URL)
+  return useTurso ? createTursoDb() : createLocalDb()
+})()
+globalForDb.db = initialDb
 
-if (process.env.NODE_ENV !== 'production') globalForDb.db = db
+// Async init runs in background — loads blob data, reconnects if needed
+initDbInternal(initialDb).catch((e) => { console.error('DB init error:', e) })
+
+// Proxy: always reads from globalForDb.db so updates after blob reload are reflected
+export const db = new Proxy({} as DbWrapper, {
+  get(_target, prop: string | symbol) {
+    const d = globalForDb.db
+    if (!d) throw new Error('Database not initialized')
+    const value = (d as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof value === 'function' ? value.bind(d) : value
+  },
+})
