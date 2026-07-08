@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  Search, Sun, Moon, Bell, ChevronDown, X,
+  Search, Sun, Moon, Bell, ChevronDown, X, Menu,
   Landmark, PiggyBank, Sparkles, LogOut, User, Globe,
   LayoutDashboard, ArrowLeftRight, Gavel, FileText, Activity,
   CalendarDays, LifeBuoy, Receipt, Wallet, Settings,
@@ -65,15 +65,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
   const { t, locale, setLocale, localeNames } = useLanguage()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [user, setUser] = useState<{
     firstName: string; lastName: string; fullName: string; email: string; profilePhoto: string | null
   } | null>(null)
   const [notifications, setNotifications] = useState<Array<{
     id: number; type: string; title: string; message: string; read: boolean; createdAt: string
   }>>([])
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   useEffect(() => {
     fetch("/api/dashboard/user")
@@ -101,12 +111,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : "ME"
 
   return (
-    <div className={`min-h-screen bg-[#F8FAFC] ${theme === "dark" ? "dark" : ""}`}>
-      <Sidebar />
-      <div className="pl-20 transition-all duration-350 lg:pl-[264px]">
+    <div className={`flex min-h-screen bg-[#F8FAFC] ${theme === "dark" ? "dark" : ""}`}>
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((s) => !s)}
+        mobileOpen={sidebarMobileOpen}
+        onMobileClose={() => setSidebarMobileOpen(false)}
+      />
+      <div
+        className="flex flex-1 flex-col min-w-0 transition-all duration-300"
+        style={{ marginLeft: isDesktop ? (sidebarCollapsed ? 72 : 260) : 0 }}
+      >
         <div className="sticky top-0 z-30 border-b border-slate-100/80 bg-white/70 shadow-[0_4px_20px_rgba(15,23,42,0.02)] backdrop-blur-xl">
-          <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center justify-between px-4 lg:px-6 py-3">
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarMobileOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-primary lg:hidden"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <PageIcon className="h-4.5 w-4.5" />
               </div>
