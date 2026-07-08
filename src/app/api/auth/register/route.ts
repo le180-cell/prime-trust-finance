@@ -43,55 +43,28 @@ export async function POST(request: Request) {
 
   const result = await db.prepare(
     "INSERT INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, ?)"
-  ).run(email, username, passwordHash, "member")
+  ).run(email, username, passwordHash, "user")
 
   await db.prepare(
     `INSERT INTO members (
-      firstName,
-      lastName,
-      username,
-      gender,
-      dateOfBirth,
-      nationalId,
-      email,
-      phone,
-      district,
-      sector,
-      cell,
-      village,
-      occupation,
-      employer,
-      monthlyIncome,
-      maritalStatus,
-      securityQuestion,
-      profilePhoto,
-      nationalIdDocument
+      firstName, lastName, username, gender, dateOfBirth, nationalId,
+      email, phone, district, sector, cell, village,
+      occupation, employer, monthlyIncome, maritalStatus,
+      securityQuestion, profilePhoto, nationalIdDocument
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    firstName,
-    lastName,
-    username,
-    gender || null,
-    dateOfBirth || null,
-    nationalId || null,
-    email,
-    phone || null,
-    district || null,
-    sector || null,
-    cell || null,
-    village || null,
-    occupation || null,
-    employer || null,
-    monthlyIncome || null,
-    maritalStatus || null,
-    securityQuestion || null,
-    profilePhoto || null,
-    nationalIdDocument || null,
+    firstName, lastName, username,
+    gender || null, dateOfBirth || null, nationalId || null,
+    email, phone || null, district || null,
+    sector || null, cell || null, village || null,
+    occupation || null, employer || null, monthlyIncome || null,
+    maritalStatus || null, securityQuestion || null,
+    profilePhoto || null, nationalIdDocument || null,
   )
 
-  const token = await signToken({ userId: result.lastInsertRowid as number, email, role: "member" })
+  const token = await signToken({ userId: result.lastInsertRowid as number, email, role: "user" })
 
-  const response = NextResponse.json({ success: true, user: { id: result.lastInsertRowid, email, username, role: "member" } }, { status: 201 })
+  const response = NextResponse.json({ success: true, user: { id: result.lastInsertRowid, email, username, role: "user" } }, { status: 201 })
   response.cookies.set("ias_token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

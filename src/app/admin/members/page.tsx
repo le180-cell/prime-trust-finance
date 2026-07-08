@@ -98,8 +98,7 @@ export default function AdminMembersPage() {
       .then((data) => {
         const enriched: Member[] = (data.members || []).map((m: Member) => ({
           ...m,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          status: m.role === "admin" ? "active" : (m as any).status || (Math.random() > 0.3 ? "active" : Math.random() > 0.5 ? "pending" : "suspended"),
+          status: "active",
         }))
         setMembers(enriched)
       })
