@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const session = await getSession()
@@ -33,5 +34,6 @@ export async function PUT(request: Request) {
   })
   await tx()
 
+  await logAudit("update", "settings", undefined, Object.keys(body).join(", "))
   return NextResponse.json({ success: true })
 }

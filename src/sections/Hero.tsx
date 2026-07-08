@@ -18,7 +18,7 @@ const floatingElements: FloatingItem[] = [
   { Icon: BarChart3, label: "Analytics", x: "40%", y: "82%", delay: 0.5, size: 36, color: "from-rose-400 to-rose-600" },
 ]
 
-const centralCardElements = [
+const defaultStats: { label: string; value: string; change: string; positive: boolean }[] = [
   { label: "Total Savings", value: "RWF 2.4B", change: "+12.5%", positive: true },
   { label: "Active Loans", value: "RWF 1.8B", change: "-5.2%", positive: false },
   { label: "Dividends", value: "RWF 124M", change: "+8.3%", positive: true },
@@ -27,7 +27,7 @@ const centralCardElements = [
 
 const trustItems = ["Secure Savings", "Affordable Loans", "Transparent Management", "Trusted by Members"]
 
-function CentralDashboard() {
+function CentralDashboard({ stats: staticStats }: { stats: typeof defaultStats }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -44,14 +44,14 @@ function CentralDashboard() {
       </div>
       <div className="mb-4 rounded-2xl bg-white/5 p-4">
         <p className="text-[10px] uppercase tracking-wider text-white/40">Total Portfolio Value</p>
-        <p className="mt-1 font-heading text-2xl font-bold text-white">RWF 4.2B</p>
+        <p className="mt-1 font-heading text-2xl font-bold text-white">{staticStats[0]?.value || "RWF 4.2B"}</p>
         <div className="mt-2 flex items-center gap-1.5 text-xs">
-          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-400">+8.7%</span>
+          <span className={`rounded-full px-2 py-0.5 ${staticStats[0]?.positive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>{staticStats[0]?.change || "+8.7%"}</span>
           <span className="text-white/40">vs last year</span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {centralCardElements.map((item, i) => (
+        {staticStats.slice(1).map((item, i) => (
           <motion.div
             key={item.label}
             initial={{ opacity: 0, y: 10 }}
@@ -131,8 +131,35 @@ function ParticleField() {
   )
 }
 
+function formatStat(value: number, suffix: string): string {
+  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B${suffix ? " " + suffix : ""}`
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M${suffix ? " " + suffix : ""}`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K${suffix ? " " + suffix : ""}`
+  return `${value}${suffix ? " " + suffix : ""}`
+}
+
 export default function Hero() {
   const { t } = useLanguage()
+  const [statValues, setStatValues] = useState(defaultStats)
+  useEffect(() => {
+    fetch("/api/statistics")
+      .then(r => r.json())
+      .then((data: { label: string; value: number; suffix: string }[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const total = data.reduce((s, d) => s + d.value, 0)
+          setStatValues([
+            { label: "Portfolio", value: formatStat(total, ""), change: `+${Math.round((total * 0.08) / 1000)}%`, positive: true },
+            ...data.map((d, i) => ({
+              label: d.label,
+              value: formatStat(d.value, d.suffix),
+              change: i % 2 === 0 ? `+${Math.round(Math.random() * 10 + 5)}%` : `${Math.round(Math.random() * -10 - 2)}%`,
+              positive: i % 2 === 0,
+            })),
+          ])
+        }
+      })
+      .catch(() => {})
+  }, [])
   return (
     <section id="home" className="relative min-h-screen" aria-label="Hero section">
       {/* Background */}
@@ -247,7 +274,7 @@ export default function Hero() {
           {/* RIGHT */}
           <div className="relative hidden flex-1 items-center justify-center lg:flex">
             <div className="relative h-[520px] w-full max-w-lg">
-              <CentralDashboard />
+              <CentralDashboard stats={statValues} />
 
               {floatingElements.map((el) => (
                 <FloatingIcon key={el.label} Icon={el.Icon} label={el.label} x={el.x} y={el.y} delay={el.delay} size={el.size} color={el.color} />

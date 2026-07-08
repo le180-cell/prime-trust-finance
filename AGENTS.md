@@ -38,26 +38,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Created `src/app/dashboard/calendar/page.tsx` with interactive calendar, events panel, add event modal
 - Deleted old `src/app/dashboard/transactions` directory
 - All 15 pages verified - `npm run build` succeeds with 62 routes
-
-### In Progress
-- None
-
-### Recently Completed
 - Added loan payment flow to loans page: "Pay Now" button on each unpaid schedule row, "Pay Overdue" batch button when missed payments exist, payment modal with amount input, payment method selector (Mobile Money / Bank Transfer / Cash Deposit) with instructions, success state with receipt, local state update on payment (marks month as paid, recalculates paidMonths and remainingBalance)
 - Created `src/app/admin/testimonials/page.tsx` — admin CRUD page for member testimonials with list, add/edit modal, delete, reorder (up/down), star rating selector
 - Created `src/app/api/admin/testimonials/route.ts` — full CRUD API (GET, POST, PUT, DELETE) backed by SQLite
 - Added "Testimonials" nav item to admin sidebar (`src/components/admin/sidebar.tsx`)
 - Fixed logout: added `GET` handler to `/api/auth/logout` that clears cookie and redirects to `/login` (was 405 error from admin sidebar/topnav `<Link>`/`<a>` GET requests); fixed POST handler to return `{ success, redirect }` JSON + clear cookie (was broken by redirect override)
 - Integrated `ThemeContext` and `LanguageContext` into admin layout (`src/app/admin/layout.tsx`) and topnav (`src/components/admin/topnav.tsx`) — replaces local `darkMode`/`lang` state, admin now shares global theme and language with member dashboard and public site
-- Prepared project for Vercel deployment:
-  - `src/lib/db.ts`: auto-detects Vercel env, uses `/tmp/data.db` for read-write access, creates all tables + seed data on cold start (no separate seed script needed)
-  - `src/proxy.ts`: auth guard middleware renamed from `middleware` to `proxy` per Next.js 16 convention; protects `/dashboard/*` and `/admin/*` routes; redirects unauthenticated to `/login`, non-admins away from `/admin`
-  - `vercel.json`, `.env.example` created; `.gitignore` updated to allow `.env.example` commits
-  - `next.config.ts`: added `serverExternalPackages: ["better-sqlite3", "bcryptjs"]` for native module bundling
-  - Hardcoded `http://localhost:3000` replaced in 3 files (`google/route.ts`, `google/callback/route.ts`, `logout/route.ts`) — uses `request.url.origin` dynamically
-  - `recover/route.ts` uses `NEXT_PUBLIC_APP_URL || NEXT_PUBLIC_BASE_URL` fallback
-  - Deleted old `src/proxy.ts` (was actual middleware file) — replaced by new proxy.ts
-  - Build passes clean: 64 routes, no warnings
+- Prepared project for Vercel deployment
+- Removed nationalId from registration page and API route
+- Fixed blob persistence stale connection bug in `src/lib/db.ts`
+- **Production transformation**: Added 17 new DB tables (CMS content, FAQ, loan products, loan applications, loans, loan repayments, savings accounts, savings transactions, savings goals, payments, receivables, penalties, interest policies, notifications, member activities, support tickets, calendar events, audit logs)
+- Built comprehensive admin **Website Management** page at `/admin/website` with 10 tabs (Hero, About, Contact, Social, Footer, FAQ, Services, Statistics, Partners, News)
+- Created 6 admin CMS API routes (`/api/admin/cms`, `/api/admin/faq`, `/api/admin/services`, `/api/admin/partners`, `/api/admin/news`, `/api/admin/interest-policies`, `/api/admin/audit-logs`)
+- **Rewrote `/api/dashboard`** from 100% hardcoded mock data to real DB queries
+- Created 8 member data APIs (`/api/dashboard/receivables`, `/api/dashboard/penalties`, `/api/dashboard/statements`, `/api/dashboard/activities`, `/api/dashboard/notifications`, `/api/dashboard/wallet`, `/api/dashboard/calendar`, `/api/dashboard/support-tickets`)
+- **Rewrote all 8 mock-only dashboard pages** (receivables, penalties, statements, activities, notifications, wallet, calendar, support) to fetch from real APIs with loading/error/empty states
+- Updated admin interest page from localStorage to API-backed (`/api/admin/interest-policies`)
+- Added audit log system: `src/lib/audit.ts` helper + `/api/admin/audit-logs` route
+- Updated registration to auto-create savings account + welcome notification for new members
+- Added "Website" navigation item to admin sidebar
+
+### Done (latest)
+- Created public `/api/cms` endpoint for public site
+- Updated Footer.tsx to fetch address, phone, email, social URLs, and copyright from CMS instead of hardcoded values
+- Updated Hero.tsx CentralDashboard to fetch real stats from `/api/statistics` instead of hardcoded RWF 4.2B / 2.4B / 1.8B values
+- Added audit log calls (`logAudit`) to `/api/admin/testimonials` (POST/PUT/DELETE) and `/api/admin/settings` (PUT)
+- All 84 routes build clean — no TypeScript errors, no lint issues
+
+### In Progress
+- None
 
 ### Blocked
 - None
@@ -69,7 +78,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - All new pages use `containerVariants`/`itemVariants` for staggered Framer Motion animations
 - Loan applications page includes inline eligibility checker for instant feedback
 - Settings page uses local state only (no API dependency); Profile page has editable/inline-edit mode
-- Receivables replaced with mock data (no live API); Payments/Calendar/Wallet are mock-data based
+- All 8 previously mock-only dashboard pages now fetch from DB-backed APIs
 
 ## Key Patterns
 - `const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } }`
@@ -86,15 +95,34 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `src/app/dashboard/loans/page.tsx` — Loan details, repayment schedule, calculator, empty state
 - `src/app/dashboard/loan-applications/page.tsx` — Loan application form with live calculator
 - `src/app/dashboard/payments/page.tsx` — Payment history with filters, search, export
-- `src/app/dashboard/receivables/page.tsx` — Receivables tracker with pay-now actions
-- `src/app/dashboard/penalties/page.tsx` — Penalty records with expandable details
-- `src/app/dashboard/statements/page.tsx` — Monthly/quarterly/annual statement downloads
-- `src/app/dashboard/activities/page.tsx` — Activity log grouped by date
-- `src/app/dashboard/notifications/page.tsx` — Notifications with mark-read, delete, filters
-- `src/app/dashboard/support/page.tsx` — Tickets, FAQ accordion, new ticket form
+- `src/app/dashboard/receivables/page.tsx` — Receivables tracker with pay-now actions (API-backed)
+- `src/app/dashboard/penalties/page.tsx` — Penalty records with expandable details (API-backed)
+- `src/app/dashboard/statements/page.tsx` — Monthly/quarterly/annual statement downloads (API-backed)
+- `src/app/dashboard/activities/page.tsx` — Activity log grouped by date (API-backed)
+- `src/app/dashboard/notifications/page.tsx` — Notifications with mark-read, delete, filters (API-backed)
+- `src/app/dashboard/support/page.tsx` — Tickets, FAQ accordion, new ticket form (API-backed)
 - `src/app/dashboard/profile/page.tsx` — Editable profile with multiple sections
 - `src/app/dashboard/settings/page.tsx` — Preferences, notification toggles, security
-- `src/app/dashboard/wallet/page.tsx` — Digital wallet with balance, send/add, history
-- `src/app/dashboard/calendar/page.tsx` — Interactive calendar with events, add modal
+- `src/app/dashboard/wallet/page.tsx` — Digital wallet with balance, send/add, history (API-backed)
+- `src/app/dashboard/calendar/page.tsx` — Interactive calendar with events, add modal (API-backed)
 - `src/app/dashboard/layout.tsx` — Premium top nav with search, dark mode, notifications, profile dropdown
 - `src/components/dashboard/Sidebar.tsx` — 16-item sidebar with layoutId active indicator
+- `src/app/admin/website/page.tsx` — Admin CMS page with 10 tabs for all website content
+- `src/lib/db.ts` — DB schema with all tables, seed data, blob persistence
+- `src/lib/audit.ts` — Audit log helper function
+- `src/app/api/dashboard/route.ts` — Rewritten with real DB queries
+- `src/app/api/dashboard/receivables/route.ts` — Member receivables API
+- `src/app/api/dashboard/penalties/route.ts` — Member penalties API
+- `src/app/api/dashboard/statements/route.ts` — Member statements API
+- `src/app/api/dashboard/activities/route.ts` — Member activities API
+- `src/app/api/dashboard/notifications/route.ts` — Member notifications CRUD API
+- `src/app/api/dashboard/wallet/route.ts` — Member wallet API
+- `src/app/api/dashboard/calendar/route.ts` — Member calendar events API
+- `src/app/api/dashboard/support-tickets/route.ts` — Member support tickets API
+- `src/app/api/admin/cms/route.ts` — Admin CMS content CRUD API
+- `src/app/api/admin/faq/route.ts` — Admin FAQ CRUD API
+- `src/app/api/admin/services/route.ts` — Admin services CRUD API
+- `src/app/api/admin/partners/route.ts` — Admin partners CRUD API
+- `src/app/api/admin/news/route.ts` — Admin news CRUD API
+- `src/app/api/admin/interest-policies/route.ts` — Admin interest policies API
+- `src/app/api/admin/audit-logs/route.ts` — Admin audit log viewer API

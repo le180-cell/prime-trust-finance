@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Send, MapPin, Phone, Mail, ChevronRight, Facebook, Twitter, Linkedin, Instagram, Copy, CreditCard } from "lucide-react"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -8,12 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext"
 const quickLinksHrefs = ["#about", "#services", "#loans", "#savings", "#news", "#contact"]
 const serviceHrefs = ["#services", "#services", "#services", "#services", "#services", "#services"]
 
-const socialLinks = [
-  { icon: Facebook, label: "Facebook" },
-  { icon: Twitter, label: "Twitter" },
-  { icon: Linkedin, label: "LinkedIn" },
-  { icon: Instagram, label: "Instagram" },
-]
+const socialIcons = [Facebook, Twitter, Linkedin, Instagram]
 
 const IAS_ACCOUNT = "4074200086837"
 
@@ -22,6 +17,24 @@ export default function Footer() {
   const [email, setEmail] = useState("")
   const [subscribed, setSubscribed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [cms, setCms] = useState<Record<string, Record<string, string>>>({})
+
+  useEffect(() => {
+    fetch("/api/cms")
+      .then(r => r.json())
+      .then(data => setCms(data))
+      .catch(() => {})
+  }, [])
+
+  const contact = cms.contact || {}
+  const social = cms.social || {}
+  const footer = cms.footer || {}
+  const address = contact.address || "KG 123 Ave, Kigali, Rwanda"
+  const phone = contact.phone || "+250 788 123 456"
+  const emailAddr = contact.email || "info@ias.rw"
+
+  const socialLabels = ["Facebook", "Twitter", "LinkedIn", "Instagram"]
+  const socialUrls = [social.facebook || "#", social.twitter || "#", social.linkedin || "#", social.instagram || "#"]
 
   const copyAccount = () => {
     navigator.clipboard.writeText(IAS_ACCOUNT)
@@ -52,8 +65,8 @@ export default function Footer() {
             </div>
             <p className="mt-4 text-sm leading-relaxed text-white/60">{t.footer.description}</p>
             <div className="mt-6 flex gap-3">
-              {socialLinks.map(({ icon: Icon, label }) => (
-                <a key={label} href="#" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/60 transition-all duration-300 hover:bg-white/20 hover:text-white" aria-label={`Follow us on ${label}`}>
+              {socialIcons.map((Icon, i) => (
+                <a key={socialLabels[i]} href={socialUrls[i]} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/60 transition-all duration-300 hover:bg-white/20 hover:text-white" aria-label={`Follow us on ${socialLabels[i]}`}>
                   <Icon className="h-5 w-5" />
                 </a>
               ))}
@@ -91,15 +104,15 @@ export default function Footer() {
             <ul className="mt-6 space-y-4">
               <li className="flex items-start gap-3 text-sm text-white/60">
                 <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-secondary" />
-                <span>KG 123 Ave, Kigali, Rwanda</span>
+                <span>{address}</span>
               </li>
               <li className="flex items-center gap-3 text-sm text-white/60">
                 <Phone className="h-4 w-4 flex-shrink-0 text-secondary" />
-                <span>+250 788 123 456</span>
+                <span>{phone}</span>
               </li>
               <li className="flex items-center gap-3 text-sm text-white/60">
                 <Mail className="h-4 w-4 flex-shrink-0 text-secondary" />
-                <span>info@ias.rw</span>
+                <span>{emailAddr}</span>
               </li>
               <li className="flex items-center gap-3 text-sm text-white/60">
                 <CreditCard className="h-4 w-4 flex-shrink-0 text-secondary" />
@@ -130,7 +143,7 @@ export default function Footer() {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">{t.footer.visitOffice}</p>
-              <p className="mt-0.5 text-xs text-white/50">KG 123 Ave, Kigali, Rwanda</p>
+              <p className="mt-0.5 text-xs text-white/50">{address}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -139,13 +152,13 @@ export default function Footer() {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">{t.footer.callUs}</p>
-              <p className="mt-0.5 text-xs text-white/50">+250 788 123 456</p>
+              <p className="mt-0.5 text-xs text-white/50">{phone}</p>
             </div>
           </div>
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8 text-center">
-          <p className="text-sm text-white/40">{t.footer.rights.replace("{year}", String(new Date().getFullYear()))}</p>
+          <p className="text-sm text-white/40">{footer.copyright || t.footer.rights.replace("{year}", String(new Date().getFullYear()))}</p>
         </div>
       </div>
     </footer>
