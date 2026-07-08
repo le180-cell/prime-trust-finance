@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, ChevronRight, Sun, Moon } from "lucide-react"
+import { Menu, X, ChevronRight, Sun, Moon, Home, Info, Briefcase, HandCoins, PiggyBank, BookOpen, Newspaper, Mail } from "lucide-react"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { useTheme } from "@/contexts/ThemeContext"
+import { cn } from "@/lib/utils"
 
 const navLinkHrefs = ["#home", "#about", "#services", "#loans", "#savings", "#resources", "#news", "#contact"]
 
-const sectionLabelByLocale: Record<string, { navigation: string; preferences: string; actions: string }> = {
-  en: { navigation: "Navigation", preferences: "Preferences", actions: "Actions" },
-  fr: { navigation: "Navigation", preferences: "Préférences", actions: "Actions" },
-  rw: { navigation: "Urugendo", preferences: "Amahitamo", actions: "Ibikorwa" },
-}
+const navIcons = [Home, Info, Briefcase, HandCoins, PiggyBank, BookOpen, Newspaper, Mail]
 
 const drawerVariants = {
   hidden: { x: "100%" },
@@ -21,7 +18,7 @@ const drawerVariants = {
 }
 
 export default function Navbar() {
-  const { t, locale, setLocale, localeNames } = useLanguage()
+  const { t, locale, setLocale } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -30,7 +27,6 @@ export default function Navbar() {
 
   const scrolledClass = scrolled ? "bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "bg-transparent"
   const brandClass = scrolled ? "text-primary" : "text-white"
-  const sectionLabel = sectionLabelByLocale[locale] || sectionLabelByLocale.en
 
   const navLabels = [t.nav.home, t.nav.about, t.nav.services, t.nav.loans, t.nav.savings, t.nav.resources, t.nav.news, t.nav.contact]
 
@@ -112,7 +108,7 @@ export default function Navbar() {
                           locale === l ? "font-semibold text-primary" : "text-slate-600"
                         }`}>
                         <span className={`h-2 w-2 rounded-full ${locale === l ? "bg-accent" : "bg-slate-200"}`} />
-                        {localeNames[l]}
+                        {l === "en" ? "English" : l === "fr" ? "Français" : "Kinyarwanda"}
                       </button>
                     ))}
                   </motion.div>
@@ -146,7 +142,6 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {/* Mobile full-screen drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -155,93 +150,99 @@ export default function Navbar() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed inset-0 z-[70] flex flex-col bg-white lg:hidden"
+            className="fixed inset-0 z-[70] flex flex-col bg-white dark:bg-slate-900 lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Mobile navigation"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-100 px-5 dark:border-white/5">
               <a href="#home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white font-bold shadow-lg">
-                  <span className="text-xs leading-none">IAS</span>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-[11px] font-bold text-white shadow-lg">
+                  IAS
                 </div>
-                <span className="text-xl font-bold tracking-tight text-primary font-heading">IAS</span>
+                <span className="font-heading text-base font-bold text-gray-900 dark:text-white">IAS</span>
               </a>
               <button onClick={() => setMobileOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800"
                 aria-label="Close menu">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="mb-8">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.navigation}</p>
-                <div className="space-y-1">
-                  {navLabels.map((label, i) => {
-                    const isActive = activeSection === navLinkHrefs[i]
-                    return (
-                      <a key={label} href={navLinkHrefs[i]} onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 rounded-xl px-4 transition-all duration-200 min-h-[48px] ${
-                          isActive
-                            ? "bg-gradient-to-r from-primary/10 to-primary/5 font-semibold text-primary"
-                            : "text-gray-700 hover:bg-gray-50 font-medium"
-                        }`}>
-                        {isActive && <span className="h-4 w-1 shrink-0 rounded-full bg-primary" />}
-                        <span className={`${isActive ? "" : "ml-4"}`}>{label}</span>
-                      </a>
-                    )
-                  })}
-                </div>
-              </div>
+            <div className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
+              <nav className="space-y-0.5">
+                {navLabels.map((label, i) => {
+                  const isActive = activeSection === navLinkHrefs[i]
+                  const Icon = navIcons[i]
+                  return (
+                    <a
+                      key={label}
+                      href={navLinkHrefs[i]}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "admin-nav-item",
+                        isActive && "active"
+                      )}
+                    >
+                      <Icon className={cn(
+                        "h-5 w-5 shrink-0",
+                        isActive ? "text-primary dark:text-secondary" : "text-gray-400 dark:text-gray-500"
+                      )} />
+                      <span>{label}</span>
+                    </a>
+                  )
+                })}
+              </nav>
 
-              <div className="mb-8">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.preferences}</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px]">
-                    <span className="text-sm font-medium text-gray-700">Language</span>
-                    <div className="flex gap-1.5">
-                      {(["en", "fr", "rw"] as const).map((l) => (
-                        <button key={l} onClick={() => setLocale(l)}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                            locale === l
-                              ? "bg-primary text-white shadow-sm"
-                              : "bg-white text-gray-500 border border-gray-200 hover:border-primary/30"
-                          }`}>
-                          {l.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
+              <div className="my-6 border-t border-gray-100 dark:border-white/5" />
+
+              <div className="space-y-3 px-1">
+                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500">
+                  Language
+                </p>
+                <div className="flex gap-2">
+                  {(["en", "fr", "rw"] as const).map((l) => (
+                    <button key={l} onClick={() => setLocale(l)}
+                      className={cn(
+                        "flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all",
+                        locale === l
+                          ? "bg-primary text-white shadow-sm dark:bg-secondary dark:text-slate-900"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:hover:bg-slate-700"
+                      )}>
+                      {l.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+
+                <button onClick={toggleTheme}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800">
+                  <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                  <div className={cn(
+                    "flex h-6 w-10 items-center rounded-full p-0.5 transition-colors",
+                    theme === "light" ? "bg-gray-300" : "bg-secondary"
+                  )}>
+                    <motion.div
+                      animate={{ x: theme === "light" ? 0 : 16 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm">
+                      {theme === "light" ? <Moon className="h-3 w-3 text-gray-500" /> : <Sun className="h-3 w-3 text-accent" />}
+                    </motion.div>
                   </div>
-
-                  <button onClick={toggleTheme}
-                    className="flex w-full items-center justify-between rounded-xl bg-gray-50 px-4 py-3 min-h-[48px] transition-colors hover:bg-gray-100">
-                    <span className="text-sm font-medium text-gray-700">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-                    <div className={`flex h-7 w-12 items-center rounded-full p-0.5 transition-colors ${theme === "light" ? "bg-gray-300" : "bg-primary"}`}>
-                      <motion.div
-                        animate={{ x: theme === "light" ? 0 : 20 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm">
-                        {theme === "light" ? <Moon className="h-3.5 w-3.5 text-gray-600" /> : <Sun className="h-3.5 w-3.5 text-accent" />}
-                      </motion.div>
-                    </div>
-                  </button>
-                </div>
+                </button>
               </div>
+            </div>
 
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{sectionLabel.actions}</p>
-                <div className="space-y-3">
-                  <a href="/login" onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3.5 text-sm font-semibold text-primary transition-all active:scale-[0.98] hover:bg-primary/5 min-h-[48px]">
-                    {t.nav.memberLogin}
-                  </a>
-                  <a href="/register" onClick={() => setMobileOpen(false)}
-                    className="btn-primary flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg active:scale-[0.98] min-h-[48px]">
-                    {t.nav.becomeMember}
-                    <ChevronRight className="h-4 w-4" />
-                  </a>
-                </div>
+            <div className="shrink-0 border-t border-gray-100 px-4 py-4 dark:border-white/5">
+              <div className="space-y-2.5">
+                <a href="/login" onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary px-6 py-3 text-sm font-semibold text-primary transition-all active:scale-[0.98] hover:bg-primary/5 dark:border-secondary dark:text-secondary dark:hover:bg-secondary/10">
+                  {t.nav.memberLogin}
+                </a>
+                <a href="/register" onClick={() => setMobileOpen(false)}
+                  className="btn-primary flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-lg active:scale-[0.98]">
+                  {t.nav.becomeMember}
+                  <ChevronRight className="h-4 w-4" />
+                </a>
               </div>
             </div>
           </motion.div>
