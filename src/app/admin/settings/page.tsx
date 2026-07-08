@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useEffect, FormEvent } from "react"
-import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import {
   Save, Shield, Eye, EyeOff, AlertTriangle, Bell, Lock,
-  Globe, RefreshCw, ToggleLeft, ToggleRight,
+  Globe, RefreshCw, ToggleLeft, ToggleRight, AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,8 +40,8 @@ function SkeletonSection() {
 }
 
 export default function AdminSettingsPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -58,25 +57,25 @@ export default function AdminSettingsPage() {
     autoBackup: true, emailAlerts: true, smsNotify: true, auditLog: true, maintenance: false,
   })
 
-
-
-  useEffect(() => {
+  const load = () => {
+    setLoading(true); setLoadError("")
     fetch("/api/admin/settings")
       .then((r) => {
-        if (r.status === 403) { router.push("/login"); return null }
+        if (!r.ok) throw new Error("Failed to load settings")
         return r.json()
       })
       .then((data) => {
-        if (!data) return
         setMode(data.bank_api_mode || "simulation")
         setBankName(data.bank_name || "")
         setBaseUrl(data.bank_api_base_url || "")
         setClientId(data.bank_api_client_id || "")
         setClientSecret(data.bank_api_client_secret || "")
       })
-      .catch(() => router.push("/login"))
+      .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false))
-  }, [router])
+  }
+
+  useEffect(load, [])
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
@@ -115,6 +114,20 @@ export default function AdminSettingsPage() {
           <SkeletonSection />
           <SkeletonSection />
         </div>
+      </motion.div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+        <motion.div className="flex min-h-[60vh] items-center justify-center" variants={sectionVariants}>
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-10 w-10 text-red-400" />
+            <p className="mt-3 text-lg font-semibold text-slate-800 dark:text-white">{loadError}</p>
+            <button onClick={load} className="mt-4 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5">Try Again</button>
+          </div>
+        </motion.div>
       </motion.div>
     )
   }
