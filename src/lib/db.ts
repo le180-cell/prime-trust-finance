@@ -567,6 +567,44 @@ async function seedData(db: DbWrapper) {
   await db.prepare("INSERT OR IGNORE INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, ?)").run('admin@ias.rw', 'admin', adminHash, 'admin')
   await db.prepare("INSERT OR IGNORE INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, ?)").run('member@ias.rw', 'member', adminHash, 'user')
 
+  // Seed member record for seeded user so dashboard APIs can find it
+  const memberUser = await db.prepare("SELECT id FROM users WHERE email = 'member@ias.rw'").get() as { id: number } | undefined
+  if (memberUser) {
+    await db.prepare(
+      "INSERT OR IGNORE INTO members (firstName, lastName, username, email, phone, district, occupation, memberSince) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
+    ).run('Jean', 'Pierre', 'member', 'member@ias.rw', '+250 788 000 000', 'Kigali', 'Business Owner')
+    const m = await db.prepare("SELECT id FROM members WHERE email = 'member@ias.rw'").get() as { id: number } | undefined
+    if (m) {
+      await db.prepare("INSERT OR IGNORE INTO savings_accounts (memberId, balance, interestRate, monthlyContribution, totalDeposits, totalWithdrawn, interestEarned) VALUES (?, ?, 4.5, ?, ?, ?, ?)").run(m.id, 250000, 50000, 350000, 100000, 12500)
+      await db.prepare("INSERT OR IGNORE INTO notifications (memberId, title, message, type) VALUES (?, ?, ?, ?)").run(m.id, 'Welcome to IAS!', 'Your account is ready. Start exploring the member dashboard.', 'success')
+      await db.prepare("INSERT OR IGNORE INTO notifications (memberId, title, message, type) VALUES (?, ?, ?, ?)").run(m.id, 'Savings Goal Progress', 'You are 65% toward your savings goal. Keep it up!', 'info')
+      await db.prepare("INSERT OR IGNORE INTO member_activities (memberId, action, description, category) VALUES (?, ?, ?, ?)").run(m.id, 'Account Created', 'Member registration completed.', 'auth')
+      await db.prepare("INSERT OR IGNORE INTO member_activities (memberId, action, description, category) VALUES (?, ?, ?, ?)").run(m.id, 'Deposit Received', 'Monthly savings deposit of RWF 50,000 received.', 'savings')
+      // Seed sample receivables
+      const receivableSeed = [
+        ['Savings', 50000, 'Monthly savings contribution', 'SAV-2026-001'],
+        ['Loan', 150000, 'Loan installment payment', 'LN-2026-042'],
+        ['Registration', 25000, 'Annual membership fee', 'REG-2026-011'],
+      ]
+      for (const [type, amount, desc, ref] of receivableSeed) {
+        const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 15)
+        await db.prepare("INSERT OR IGNORE INTO receivables (memberId, type, amount, description, reference, status, dueDate) VALUES (?, ?, ?, ?, ?, 'pending', ?)").run(m.id, type as string, amount as number, desc as string, ref as string, dueDate.toISOString().split('T')[0])
+      }
+      // Seed a paid receivable
+      const pastDate = new Date(); pastDate.setDate(pastDate.getDate() - 30)
+      await db.prepare("INSERT OR IGNORE INTO receivables (memberId, type, amount, description, reference, status, dueDate, paidAt) VALUES (?, ?, ?, ?, ?, 'paid', ?, datetime('now', '-5 days'))").run(m.id, 'Savings', 50000, 'Monthly savings (paid)', 'SAV-2026-002', pastDate.toISOString().split('T')[0])
+      // Seed sample penalties
+      await db.prepare("INSERT OR IGNORE INTO penalties (memberId, description, reason, amount, severity, status, imposedDate, dueDate) VALUES (?, ?, ?, ?, 'low', 'paid', ?, ?)").run(m.id, 'Late payment fee (cleared)', 'Payment was 2 days late', 5000, pastDate.toISOString().split('T')[0], pastDate.toISOString().split('T')[0])
+      const futurePenalty = new Date(); futurePenalty.setDate(futurePenalty.getDate() + 10)
+      await db.prepare("INSERT OR IGNORE INTO penalties (memberId, description, reason, amount, severity, status, imposedDate, dueDate) VALUES (?, ?, ?, ?, 'medium', 'pending', ?, ?)").run(m.id, 'Missed savings target', 'Q1 savings target not met', 15000, pastDate.toISOString().split('T')[0], futurePenalty.toISOString().split('T')[0])
+      // Seed sample payments (for statements page)
+      for (let i = 1; i <= 3; i++) {
+        const payDate = new Date(); payDate.setMonth(payDate.getMonth() - i)
+        await db.prepare("INSERT OR IGNORE INTO payments (memberId, type, amount, description, reference, method, status, paidAt) VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)").run(m.id, 'deposit', 50000, 'Monthly savings deposit', `SAV-2026-00${i}`, 'mobile', payDate.toISOString().split('T')[0])
+      }
+    }
+  }
+
   const services = [
     ['Savings', 'Flexible savings accounts with competitive interest rates to help your money grow securely.', 'savings', 0],
     ['Loans', 'Affordable loan products with transparent terms and quick approval processes.', 'loans', 1],
