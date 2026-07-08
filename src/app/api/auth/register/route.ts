@@ -9,7 +9,6 @@ export async function POST(request: Request) {
     username,
     gender,
     dateOfBirth,
-    nationalId,
     email,
     phone,
     district,
@@ -22,7 +21,6 @@ export async function POST(request: Request) {
     maritalStatus,
     securityQuestion,
     profilePhoto,
-    nationalIdDocument,
     password,
   } = await request.json()
 
@@ -47,19 +45,19 @@ export async function POST(request: Request) {
 
   await db.prepare(
     `INSERT INTO members (
-      firstName, lastName, username, gender, dateOfBirth, nationalId,
+      firstName, lastName, username, gender, dateOfBirth,
       email, phone, district, sector, cell, village,
       occupation, employer, monthlyIncome, maritalStatus,
-      securityQuestion, profilePhoto, nationalIdDocument
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      securityQuestion, profilePhoto
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     firstName, lastName, username,
-    gender || null, dateOfBirth || null, nationalId || null,
+    gender || null, dateOfBirth || null,
     email, phone || null, district || null,
     sector || null, cell || null, village || null,
     occupation || null, employer || null, monthlyIncome || null,
     maritalStatus || null, securityQuestion || null,
-    profilePhoto || null, nationalIdDocument || null,
+    profilePhoto || null,
   )
 
   const token = await signToken({ userId: result.lastInsertRowid as number, email, role: "user" })

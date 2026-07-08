@@ -18,7 +18,6 @@ import {
   ImagePlus,
   LoaderCircle,
   ShieldCheck,
-  Upload,
 } from "lucide-react"
 import AuthShell from "@/components/auth/AuthShell"
 
@@ -35,7 +34,6 @@ const registerSchema = z
     lastName: z.string().min(2, "Last name is required."),
     gender: z.string().min(1, "Gender is required."),
     dateOfBirth: z.string().min(1, "Date of birth is required."),
-    nationalId: z.string().min(6, "National ID is required."),
     profilePhoto: z.string().optional(),
     phone: z.string().min(7, "Phone number is required."),
     email: z.string().email("Enter a valid email address."),
@@ -52,7 +50,6 @@ const registerSchema = z
     confirmPassword: z.string().min(8),
     securityQuestion: z.string().min(4, "Security question is required."),
     terms: z.boolean().refine((value) => value, { message: "You must accept the terms." }),
-    nationalIdDocument: z.string().min(1, "Upload your national ID."),
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ["confirmPassword"],
@@ -64,7 +61,7 @@ type RegisterValues = z.infer<typeof registerSchema>
 const steps = [
   {
     title: "Personal Information",
-    fields: ["firstName", "lastName", "gender", "dateOfBirth", "nationalId", "profilePhoto"] as const,
+    fields: ["firstName", "lastName", "gender", "dateOfBirth", "profilePhoto"] as const,
   },
   {
     title: "Contact",
@@ -78,10 +75,6 @@ const steps = [
     title: "Account",
     fields: ["username", "password", "confirmPassword", "securityQuestion", "terms"] as const,
   },
-  {
-    title: "Verification",
-    fields: ["nationalIdDocument"] as const,
-  },
 ] as const
 
 const initialRegisterValues: RegisterValues = {
@@ -89,7 +82,6 @@ const initialRegisterValues: RegisterValues = {
   lastName: "",
   gender: "",
   dateOfBirth: "",
-  nationalId: "",
   profilePhoto: "",
   phone: "",
   email: "",
@@ -106,7 +98,6 @@ const initialRegisterValues: RegisterValues = {
   confirmPassword: "",
   securityQuestion: "",
   terms: false,
-  nationalIdDocument: "",
 }
 
 function RippleButton({
@@ -199,7 +190,7 @@ function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSelectEle
 
 function MemberCard({ data }: { data: Partial<RegisterValues> }) {
   const initials = `${data.firstName?.[0] ?? "I"}${data.lastName?.[0] ?? "S"}`.toUpperCase()
-  const memberId = `IAS-${String((data.username || data.firstName || "0000").slice(0, 4)).toUpperCase().padEnd(4, "X")}-${String(data.nationalId || "0000").slice(-4)}`
+  const memberId = `IAS-${String((data.username || data.firstName || "0000").slice(0, 4)).toUpperCase().padEnd(4, "X")}`
 
   return (
     <motion.div
@@ -335,7 +326,6 @@ export default function RegisterPage() {
       monthlyIncome: values.monthlyIncome,
       profilePhoto: values.profilePhoto,
       username: values.username,
-      nationalId: values.nationalId,
     }),
     [values],
   )
@@ -361,7 +351,7 @@ export default function RegisterPage() {
     }
   }
 
-  const handleFile = async (file: File | null, field: "profilePhoto" | "nationalIdDocument") => {
+  const handleFile = async (file: File | null, field: "profilePhoto") => {
     if (!file) return
     if (field === "profilePhoto" && !file.type.startsWith("image/")) {
       toast.error("Please upload an image file.")
@@ -465,9 +455,6 @@ export default function RegisterPage() {
                         </Field>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="National ID" error={errors.nationalId?.message}>
-                          <Input {...register("nationalId")} placeholder="1199 1234 5678 9012" />
-                        </Field>
                         <Field label="Profile Photo Upload" error={errors.profilePhoto?.message}>
                           <label className="flex cursor-pointer items-center justify-between rounded-[20px] border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-500 transition hover:border-primary hover:text-primary">
                             <span className="inline-flex items-center gap-2">
@@ -582,38 +569,7 @@ export default function RegisterPage() {
                     </>
                   ) : null}
 
-                  {step === 4 ? (
-                    <>
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                        <h3 className="font-heading text-lg font-bold text-slate-900">Preview information</h3>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                          {[
-                            ["Name", `${values.firstName || "-"} ${values.lastName || ""}`],
-                            ["Username", values.username || "-"],
-                            ["Phone", values.phone || "-"],
-                            ["District", values.district || "-"],
-                            ["Occupation", values.occupation || "-"],
-                            ["Income", values.monthlyIncome || "-"],
-                          ].map(([label, value]) => (
-                            <div key={label} className="rounded-[18px] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{label}</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-800">{value}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
 
-                      <Field label="Upload National ID" error={errors.nationalIdDocument?.message}>
-                        <label className="flex cursor-pointer items-center justify-between rounded-[20px] border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-500 transition hover:border-primary hover:text-primary">
-                          <span className="inline-flex items-center gap-2">
-                            <Upload className="h-4 w-4" />
-                            {values.nationalIdDocument ? "National ID selected" : "Upload National ID"}
-                          </span>
-                          <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(event) => void handleFile(event.target.files?.[0] ?? null, "nationalIdDocument")} />
-                        </label>
-                      </Field>
-                    </>
-                  ) : null}
                 </motion.div>
               </AnimatePresence>
 
