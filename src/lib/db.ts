@@ -34,14 +34,26 @@ function createLocalDb(): DbWrapper {
       return {
         get: (...args: unknown[]) => Promise.resolve(stmt.get(...args) as Row),
         all: (...args: unknown[]) => Promise.resolve(stmt.all(...args) as RowArray),
-        run: (...args: unknown[]) => Promise.resolve(stmt.run(...args) as { changes: number; lastInsertRowid?: number }),
+        run: (...args: unknown[]) => {
+          const result = stmt.run(...args) as { changes: number; lastInsertRowid?: number }
+          if (result.changes > 0) scheduleBlobSave()
+          return Promise.resolve(result)
+        },
       }
     },
     exec(sql: string) { d.exec(sql); return Promise.resolve() },
-    execMany(sqls: string[]) { for (const s of sqls) d.exec(s); return Promise.resolve() },
+    execMany(sqls: string[]) {
+      for (const s of sqls) d.exec(s)
+      scheduleBlobSave()
+      return Promise.resolve()
+    },
     transaction<T>(fn: (...args: unknown[]) => T) {
       const txn = d.transaction(fn)
-      return (...args: unknown[]) => Promise.resolve(txn(...args) as T)
+      return (...args: unknown[]) => {
+        const result = txn(...args) as T
+        scheduleBlobSave()
+        return Promise.resolve(result)
+      }
     },
     close() { d.close() },
   }
@@ -93,6 +105,71 @@ function createTursoDb(): DbWrapper {
     },
     close() { /* no-op for remote */ },
   }
+}
+
+/* ─── Vercel Blob persistence ─── */
+
+const BLOB_PATH_NAME = 'prime-trust-finance/data.db'
+let blobStoreUrl: string | null = null
+let blobSaveTimer: ReturnType<typeof setTimeout> | null = null
+let blobDirty = false
+
+async function initBlobStore(): Promise<boolean> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return false
+  try {
+    const { list } = await import('@vercel/blob')
+    const { blobs } = await list()
+    const existing = blobs.find(b => b.pathname === BLOB_PATH_NAME)
+    if (existing) blobStoreUrl = existing.url
+    return true
+  } catch { return false }
+}
+
+async function loadDbFromBlob(fs: any): Promise<boolean> {
+  if (!blobStoreUrl) return false
+  try {
+    const { get } = await import('@vercel/blob')
+    const result = await get(blobStoreUrl, { access: 'public' })
+    if (!result || !result.stream) return false
+    const chunks: Buffer[] = []
+    const reader = result.stream.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(Buffer.from(value))
+    }
+    const buffer = Buffer.concat(chunks)
+    fs.writeFileSync('/tmp/data.db', buffer)
+    return true
+  } catch { return false }
+}
+
+async function saveDbToBlob(): Promise<void> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return
+  try {
+    const fs = require('fs')
+    const dbPath = process.env.VERCEL === '1' ? '/tmp/data.db' : path.join(process.cwd(), 'db', 'data.db')
+    if (!fs.existsSync(dbPath)) return
+    const buffer = fs.readFileSync(dbPath)
+    const { put } = await import('@vercel/blob')
+    const result = await put(BLOB_PATH_NAME, buffer, { access: 'public', addRandomSuffix: false })
+    blobStoreUrl = result.url
+  } catch (e) {
+    console.error('Blob save error:', e)
+  }
+}
+
+function scheduleBlobSave(): void {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return
+  blobDirty = true
+  if (blobSaveTimer) return
+  blobSaveTimer = setTimeout(async () => {
+    blobSaveTimer = null
+    if (blobDirty) {
+      blobDirty = false
+      await saveDbToBlob()
+    }
+  }, 2000)
 }
 
 /* ─── Schema & seed ─── */
@@ -312,8 +389,22 @@ const globalForDb = globalThis as unknown as { db: DbWrapper }
 function initDb(): DbWrapper {
   const useTurso = !!(process.env.TURSO_DB_URL)
   const d = useTurso ? createTursoDb() : createLocalDb()
-  // Run schema + seed synchronously — wrapped calls are async but we init eagerly
   ;(async () => {
+    const fs = require('fs')
+    const blobAvailable = await initBlobStore()
+
+    if (blobAvailable && process.env.VERCEL === '1') {
+      const loaded = await loadDbFromBlob(fs)
+      if (!loaded) {
+        // First-ever startup on this blob store — create fresh and seed
+        await d.execMany(createTableStatements)
+        await migrateSchema(d)
+        await seedData(d)
+        await saveDbToBlob()
+      }
+      return
+    }
+
     await d.execMany(createTableStatements)
     await migrateSchema(d)
     await seedData(d)
