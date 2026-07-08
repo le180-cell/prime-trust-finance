@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  Activity, Search, Filter, Clock, ChevronDown, User, DollarSign,
+  Activity, Search, Clock, User, DollarSign,
   FileText, Settings, Shield, Bell, LogIn, LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -11,29 +11,7 @@ import { cn } from "@/lib/utils"
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }
 
-interface ActivityItem {
-  id: number
-  action: string
-  description: string
-  date: string
-  time: string
-  category: "transaction" | "profile" | "loan" | "savings" | "auth" | "settings" | "notification"
-}
-
-const mockActivities: ActivityItem[] = [
-  { id: 1, action: "Loan Application Submitted", description: "Development loan application for RWF 2,000,000 submitted", date: "2026-07-04", time: "10:23 AM", category: "loan" },
-  { id: 2, action: "Loan Installment Paid", description: "Monthly loan installment of RWF 285,000 paid successfully", date: "2026-07-04", time: "09:15 AM", category: "transaction" },
-  { id: 3, action: "Savings Deposit", description: "RWF 50,000 deposited to savings account", date: "2026-07-03", time: "02:30 PM", category: "savings" },
-  { id: 4, action: "Profile Updated", description: "Phone number updated to +250 788 000 000", date: "2026-07-03", time: "11:00 AM", category: "profile" },
-  { id: 5, action: "Password Changed", description: "Account password was changed successfully", date: "2026-07-02", time: "04:45 PM", category: "auth" },
-  { id: 6, action: "Statement Downloaded", description: "June 2026 account statement downloaded", date: "2026-07-02", time: "03:00 PM", category: "settings" },
-  { id: 7, action: "Account Login", description: "New login from Chrome on Windows", date: "2026-07-02", time: "08:00 AM", category: "auth" },
-  { id: 8, action: "Notification Preferences Updated", description: "SMS notifications enabled for payment reminders", date: "2026-07-01", time: "12:15 PM", category: "notification" },
-  { id: 9, action: "Loan Repayment Schedule Generated", description: "Repayment schedule for approved loan generated", date: "2026-06-30", time: "10:00 AM", category: "loan" },
-  { id: 10, action: "Dividend Paid", description: "Annual dividend of RWF 25,000 credited to account", date: "2026-06-28", time: "09:00 AM", category: "transaction" },
-  { id: 11, action: "Profile Picture Changed", description: "Profile picture updated", date: "2026-06-27", time: "05:20 PM", category: "profile" },
-  { id: 12, action: "Account Logout", description: "Logged out from mobile device", date: "2026-06-27", time: "06:00 PM", category: "auth" },
-]
+interface ActivityItem { id: number; action: string; description: string; createdAt: string; category: string }
 
 const categoryIcons = {
   transaction: { icon: DollarSign, colors: "bg-emerald-50 text-emerald-600" },
@@ -43,11 +21,12 @@ const categoryIcons = {
   auth: { icon: LogIn, colors: "bg-amber-50 text-amber-600" },
   settings: { icon: Settings, colors: "bg-slate-50 text-slate-600" },
   notification: { icon: Bell, colors: "bg-rose-50 text-rose-600" },
+  general: { icon: Activity, colors: "bg-gray-50 text-gray-600" },
 }
 
 const categoryLabels: Record<string, string> = {
   transaction: "Transaction", loan: "Loan", savings: "Savings",
-  profile: "Profile", auth: "Security", settings: "Settings", notification: "Notifications",
+  profile: "Profile", auth: "Security", settings: "Settings", notification: "Notifications", general: "General",
 }
 
 function Skeleton({ className = "" }: { className?: string }) { return <div className={`animate-pulse rounded-2xl bg-slate-100 ${className}`} /> }
@@ -65,17 +44,21 @@ function PageSkeleton() {
 export default function ActivitiesPage() {
   const [search, setSearch] = useState("")
   const [catFilter, setCatFilter] = useState("All")
+  const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(t)
+    fetch("/api/dashboard/activities")
+      .then((r) => r.json())
+      .then((data) => setActivities(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
-  const categories = ["All", ...Array.from(new Set(mockActivities.map((a) => a.category)))]
+  const categories = ["All", ...Array.from(new Set(activities.map((a) => a.category)))]
   const catLabels: Record<string, string> = { All: "All Categories", ...categoryLabels }
 
-  const filtered = mockActivities.filter((a) => {
+  const filtered = activities.filter((a) => {
     if (catFilter !== "All" && a.category !== catFilter) return false
     if (search && !a.action.toLowerCase().includes(search.toLowerCase()) && !a.description.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -84,8 +67,9 @@ export default function ActivitiesPage() {
   const grouped = useMemo(() => {
     const groups: Record<string, ActivityItem[]> = {}
     for (const a of filtered) {
-      if (!groups[a.date]) groups[a.date] = []
-      groups[a.date].push(a)
+      const date = a.createdAt.split("T")[0]
+      if (!groups[date]) groups[date] = []
+      groups[date].push(a)
     }
     return groups
   }, [filtered])
@@ -127,7 +111,7 @@ export default function ActivitiesPage() {
               <p className="mt-4 text-lg font-medium text-slate-500">No activities found</p>
             </div>
           ) : (
-            Object.entries(grouped).map(([date, activities]) => (
+            Object.entries(grouped).map(([date, items]) => (
               <div key={date}>
                 <div className="mb-3 flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
@@ -136,19 +120,20 @@ export default function ActivitiesPage() {
                 </div>
                 <div className="space-y-2">
                   <AnimatePresence>
-                    {activities.map((a, i) => {
-                      const { icon: Icon, colors } = categoryIcons[a.category]
+                    {items.map((a, i) => {
+                      const cfg = categoryIcons[a.category as keyof typeof categoryIcons] || categoryIcons.general
+                      const Icon = cfg.icon
                       return (
                         <motion.div key={a.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ delay: i * 0.02 }}
                           className="flex items-start gap-3.5 rounded-xl bg-white px-4 py-3.5 transition-colors hover:bg-slate-50">
-                          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", colors)}>
+                          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", cfg.colors)}>
                             <Icon className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-slate-800">{a.action}</p>
                             <p className="text-xs text-slate-500">{a.description}</p>
                           </div>
-                          <span className="shrink-0 text-[11px] text-slate-400">{a.time}</span>
+                          <span className="shrink-0 text-[11px] text-slate-400">{new Date(a.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                         </motion.div>
                       )
                     })}

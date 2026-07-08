@@ -307,6 +307,217 @@ const createTableStatements = [
     value TEXT NOT NULL,
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  `CREATE TABLE IF NOT EXISTS cms_content (
+    section TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (section, key)
+  )`,
+  `CREATE TABLE IF NOT EXISTS faq_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    sortOrder INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS loan_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    minAmount REAL NOT NULL DEFAULT 0,
+    maxAmount REAL NOT NULL DEFAULT 0,
+    interestRate REAL NOT NULL DEFAULT 12,
+    minTenure INTEGER NOT NULL DEFAULT 1,
+    maxTenure INTEGER NOT NULL DEFAULT 60,
+    icon TEXT NOT NULL DEFAULT 'default',
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS loan_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    productId INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    tenure INTEGER NOT NULL,
+    purpose TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    interestRate REAL NOT NULL DEFAULT 12,
+    monthlyPayment REAL NOT NULL DEFAULT 0,
+    totalInterest REAL NOT NULL DEFAULT 0,
+    totalRepayment REAL NOT NULL DEFAULT 0,
+    appliedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewedAt TEXT DEFAULT NULL,
+    reviewedBy INTEGER DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    FOREIGN KEY (memberId) REFERENCES members(id),
+    FOREIGN KEY (productId) REFERENCES loan_products(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS loans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    applicationId INTEGER DEFAULT NULL,
+    amount REAL NOT NULL,
+    interestRate REAL NOT NULL DEFAULT 12,
+    tenure INTEGER NOT NULL DEFAULT 12,
+    monthlyPayment REAL NOT NULL DEFAULT 0,
+    totalInterest REAL NOT NULL DEFAULT 0,
+    totalRepayment REAL NOT NULL DEFAULT 0,
+    paidMonths INTEGER NOT NULL DEFAULT 0,
+    remainingBalance REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    disbursedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    completedAt TEXT DEFAULT NULL,
+    FOREIGN KEY (memberId) REFERENCES members(id),
+    FOREIGN KEY (applicationId) REFERENCES loan_applications(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS loan_repayments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loanId INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    dueDate TEXT NOT NULL,
+    amount REAL NOT NULL,
+    paid INTEGER NOT NULL DEFAULT 0,
+    paidDate TEXT DEFAULT NULL,
+    FOREIGN KEY (loanId) REFERENCES loans(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS savings_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    balance REAL NOT NULL DEFAULT 0,
+    interestRate REAL NOT NULL DEFAULT 4.5,
+    monthlyContribution REAL NOT NULL DEFAULT 0,
+    totalDeposits REAL NOT NULL DEFAULT 0,
+    totalWithdrawn REAL NOT NULL DEFAULT 0,
+    interestEarned REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    openedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS savings_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    accountId INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    balanceBefore REAL NOT NULL DEFAULT 0,
+    balanceAfter REAL NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (accountId) REFERENCES savings_accounts(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS savings_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    target REAL NOT NULL,
+    saved REAL NOT NULL DEFAULT 0,
+    deadline TEXT DEFAULT NULL,
+    icon TEXT NOT NULL DEFAULT 'target',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    reference TEXT DEFAULT NULL,
+    method TEXT NOT NULL DEFAULT 'mobile',
+    status TEXT NOT NULL DEFAULT 'completed',
+    paidAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS receivables (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    dueDate TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    description TEXT DEFAULT NULL,
+    reference TEXT DEFAULT NULL,
+    paidAt TEXT DEFAULT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS penalties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    reason TEXT DEFAULT NULL,
+    amount REAL NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'pending',
+    imposedDate TEXT NOT NULL DEFAULT (datetime('now')),
+    dueDate TEXT NOT NULL,
+    paidDate TEXT DEFAULT NULL,
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS interest_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    rate REAL NOT NULL,
+    type TEXT NOT NULL DEFAULT 'savings',
+    minBalance REAL NOT NULL DEFAULT 0,
+    maxBalance REAL NOT NULL DEFAULT 999999999,
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'info',
+    read INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS member_activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'general',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS support_tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'General',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'open',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    lastUpdate TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS calendar_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memberId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    date TEXT NOT NULL,
+    time TEXT DEFAULT NULL,
+    type TEXT NOT NULL DEFAULT 'reminder',
+    amount REAL DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (memberId) REFERENCES members(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    adminId INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    entityId INTEGER DEFAULT NULL,
+    details TEXT DEFAULT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (adminId) REFERENCES users(id)
+  )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token)`,
   `CREATE INDEX IF NOT EXISTS idx_reset_tokens_userId ON reset_tokens(userId)`,
@@ -389,6 +600,58 @@ async function seedData(db: DbWrapper) {
 
   const defaultSettings = [['bank_api_mode', 'simulation'], ['bank_api_base_url', ''], ['bank_api_client_id', ''], ['bank_api_client_secret', ''], ['bank_name', ''], ['ias_account_number', '4074200086837']]
   for (const [k, v] of defaultSettings) await db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").run(k, v)
+
+  // Seed CMS content
+  const cmsDefaults = [
+    ['hero', 'title', 'Prime Trust Finance'],
+    ['hero', 'subtitle', 'Empowering Financial Growth, Building Trust'],
+    ['hero', 'description', 'Join Rwanda\'s most trusted savings and loan cooperative. Secure your future with flexible savings, affordable loans, and dedicated member support.'],
+    ['hero', 'cta', 'Get Started'],
+    ['hero', 'ctaSecondary', 'Learn More'],
+    ['about', 'title', 'About IAS'],
+    ['about', 'content', 'IAS (Ikibazo cy\'Abakozi ba Amasezerano) is a member-owned financial cooperative dedicated to promoting savings and providing affordable credit to its members. Established with the mission of financial inclusion, we serve thousands of members across Rwanda.'],
+    ['about', 'mission', 'To provide accessible, affordable, and sustainable financial services that empower our members to achieve their goals.'],
+    ['about', 'vision', 'To be the leading member-centric financial cooperative in Rwanda, setting the standard for trust, innovation, and community impact.'],
+    ['contact', 'address', 'KG 123 St, Kigali, Rwanda'],
+    ['contact', 'phone', '+250 788 000 000'],
+    ['contact', 'email', 'info@ias.rw'],
+    ['contact', 'hours', 'Mon-Fri: 8:00 AM - 5:00 PM'],
+    ['social', 'facebook', 'https://facebook.com/ias'],
+    ['social', 'twitter', 'https://twitter.com/ias'],
+    ['social', 'instagram', 'https://instagram.com/ias'],
+    ['social', 'linkedin', 'https://linkedin.com/company/ias'],
+    ['footer', 'copyright', `© ${new Date().getFullYear()} IAS - Ikibazo cy\'Abakozi ba Amasezerano. All rights reserved.`],
+    ['footer', 'tagline', 'Building financial futures together.'],
+  ]
+  for (const [section, key, value] of cmsDefaults) await db.prepare("INSERT OR IGNORE INTO cms_content (section, key, value) VALUES (?, ?, ?)").run(section, key, value)
+
+  // Seed FAQ
+  const faqs = [
+    ['How do I apply for a loan?', 'You can apply for a loan through your member dashboard. Navigate to "Loan Applications", select a loan product, fill in the required details, and submit. Our team will review your application within 2-3 business days.', 0],
+    ['When are dividends paid?', 'Dividends are calculated annually based on your average savings balance and the cooperative\'s profitability. They are typically credited to member accounts at the end of each financial year.', 1],
+    ['What are the current interest rates?', 'Savings accounts earn competitive interest rates starting from 4.5% per annum. Loan interest rates vary by product, starting from 9% APR. Check our Loans page for current rates.', 2],
+    ['How can I update my profile?', 'You can update your personal information through the Profile page in your member dashboard. Changes to critical information may require verification.', 3],
+    ['Can I have multiple loans at once?', 'IAS allows one active loan at a time per member. You must fully repay your current loan before applying for a new one, unless you qualify for a top-up.', 4],
+    ['What documents do I need to join?', 'To join IAS, you need a valid government-issued ID, passport photos, and proof of residence. The registration process is straightforward and can be completed online.', 5],
+  ]
+  for (const [q, a, order] of faqs) await db.prepare("INSERT OR IGNORE INTO faq_items (question, answer, sortOrder) VALUES (?, ?, ?)").run(q, a, order)
+
+  // Seed loan products
+  const loanProducts = [
+    ['Development Loan', 'Long-term financing for business expansion, asset acquisition, or major projects.', 100000, 50000000, 9, 6, 60, 'briefcase', 1],
+    ['Emergency Loan', 'Quick-access funds for urgent needs like medical expenses or emergencies.', 50000, 2000000, 15, 1, 12, 'ambulance', 1],
+    ['Education Loan', 'Financing for tuition, school fees, and educational materials.', 100000, 10000000, 10, 3, 36, 'graduation-cap', 1],
+    ['Agriculture Loan', 'Seasonal financing for farming inputs, equipment, and agricultural projects.', 100000, 15000000, 12, 3, 48, 'sprout', 1],
+  ]
+  for (const [name, desc, minAmt, maxAmt, rate, minTen, maxTen, icon, active] of loanProducts) await db.prepare("INSERT OR IGNORE INTO loan_products (name, description, minAmount, maxAmount, interestRate, minTenure, maxTenure, icon, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(name, desc, minAmt, maxAmt, rate, minTen, maxTen, icon, active)
+
+  // Seed interest policies
+  const policies = [
+    ['Regular Savings', 4.5, 'savings', 0, 999999999, 1],
+    ['Premium Savings', 6.0, 'savings', 5000000, 999999999, 1],
+    ['Loan Interest Standard', 12.0, 'loan', 0, 999999999, 1],
+  ]
+  for (const [name, rate, type, minBal, maxBal, active] of policies) await db.prepare("INSERT OR IGNORE INTO interest_policies (name, rate, type, minBalance, maxBalance, active) VALUES (?, ?, ?, ?, ?, ?)").run(name, rate, type, minBal, maxBal, active)
 }
 
 /* ─── Init ─── */

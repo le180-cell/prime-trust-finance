@@ -1,33 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   MessageSquare, Phone, Mail, Clock, CheckCircle, Send, ChevronDown,
-  HelpCircle, FileText, Users, Shield, ChevronRight, Search,
+  HelpCircle, ChevronRight, Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } }
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }
 
 interface Ticket {
   id: number
+  memberId: number
   subject: string
   message: string
   category: string
   status: "open" | "in_progress" | "resolved" | "closed"
   priority: "low" | "medium" | "high"
-  date: string
+  createdAt: string
   lastUpdate: string
 }
-
-const initialTickets: Ticket[] = [
-  { id: 1, subject: "Loan Application Delay", message: "My loan application has been pending for over a week.", category: "Loan", status: "open", priority: "high", date: "2026-07-03", lastUpdate: "2026-07-04" },
-  { id: 2, subject: "Statement Discrepancy", message: "My June statement shows an incorrect debit.", category: "Accounting", status: "in_progress", priority: "medium", date: "2026-07-01", lastUpdate: "2026-07-03" },
-  { id: 3, subject: "Profile Update Help", message: "Unable to update my email address.", category: "Account", status: "resolved", priority: "low", date: "2026-06-28", lastUpdate: "2026-06-30" },
-  { id: 4, subject: "Dividend Not Credited", message: "Expected dividend not showing in my account.", category: "Dividend", status: "closed", priority: "medium", date: "2026-06-25", lastUpdate: "2026-06-29" },
-]
 
 const faqs = [
   { q: "How do I apply for a loan?", a: "Go to Loan Applications from the sidebar, select a loan product, fill the form, and submit. You'll receive a notification once reviewed." },
@@ -44,32 +39,56 @@ const statusBadge = (status: string) => {
 }
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>(initialTickets)
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<"tickets" | "faq" | "new">("tickets")
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
   const [category, setCategory] = useState("General")
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
+  const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  function handleSubmitTicket() {
-    if (!subject.trim() || !message.trim()) return
-    const newTicket: Ticket = {
-      id: Date.now(),
-      subject,
-      message,
-      category,
-      status: "open",
-      priority: "medium",
-      date: new Date().toISOString().split("T")[0],
-      lastUpdate: new Date().toISOString().split("T")[0],
+  const fetchTickets = useCallback(async () => {
+    setError(false)
+    try {
+      const res = await fetch("/api/dashboard/support-tickets")
+      if (!res.ok) throw new Error("Failed to fetch tickets")
+      const data = await res.json()
+      setTickets(data)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
     }
-    setTickets([newTicket, ...tickets])
-    setSubject("")
-    setMessage("")
-    setCategory("General")
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 3000)
+  }, [])
+
+  useEffect(() => { fetchTickets() }, [fetchTickets])
+
+  async function handleSubmitTicket() {
+    if (!subject.trim() || !message.trim()) return
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/dashboard/support-tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim(), category, priority }),
+      })
+      if (!res.ok) throw new Error("Failed to submit ticket")
+      setSubject("")
+      setMessage("")
+      setCategory("General")
+      setPriority("medium")
+      setSubmitted(true)
+      setTimeout(() => { setSubmitted(false); setActiveTab("tickets") }, 2000)
+      await fetchTickets()
+    } catch {
+      // silently fail - user can retry
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -112,101 +131,138 @@ export default function SupportPage() {
           ))}
         </motion.div>
 
-        {activeTab === "tickets" && (
-          <motion.div variants={itemVariants} className="space-y-2">
-            {tickets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white py-16">
-                <CheckCircle className="h-14 w-14 text-emerald-300" />
-                <p className="mt-4 text-lg font-medium text-slate-500">No tickets</p>
-                <p className="text-sm text-slate-400">All your issues are resolved.</p>
-              </div>
-            ) : (
-              tickets.map((t, i) => (
-                <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                  className="flex items-start justify-between rounded-2xl border border-slate-100 bg-white px-5 py-4 transition-all hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-slate-800">{t.subject}</p>
-                      {statusBadge(t.status)}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                      <span>{t.category}</span>
-                      <span>·</span>
-                      <span>Priority: {t.priority}</span>
-                      <span>·</span>
-                      <span>Updated: {t.lastUpdate}</span>
+        <AnimatePresence mode="wait">
+          {activeTab === "tickets" && (
+            <motion.div key="tickets" variants={itemVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }} className="space-y-2">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-start justify-between rounded-2xl border border-slate-100 bg-white px-5 py-4">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-40 animate-pulse rounded bg-slate-200" />
+                        <div className="h-4 w-16 animate-pulse rounded-full bg-slate-200" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 w-20 animate-pulse rounded bg-slate-200" />
+                        <div className="h-3 w-3 animate-pulse rounded bg-slate-200" />
+                        <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
+                        <div className="h-3 w-3 animate-pulse rounded bg-slate-200" />
+                        <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
+                      </div>
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
-                </motion.div>
-              ))
-            )}
-          </motion.div>
-        )}
-
-        {activeTab === "faq" && (
-          <motion.div variants={itemVariants} className="space-y-2">
-            {faqs.map((f, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                className="rounded-2xl border border-slate-100 bg-white">
-                <button onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left">
-                  <div className="flex items-center gap-3">
-                    <HelpCircle className="h-4 w-4 text-primary shrink-0" />
-                    <span className="text-sm font-medium text-slate-800">{f.q}</span>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", expandedFaq === i && "rotate-180")} />
-                </button>
-                {expandedFaq === i && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                    className="border-t border-slate-100 px-5 py-4">
-                    <p className="text-sm text-slate-600">{f.a}</p>
-                  </motion.div>
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-
-        {activeTab === "new" && (
-          <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 sm:p-8">
-            {submitted ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <CheckCircle className="h-16 w-16 text-emerald-500" />
-                <p className="mt-4 text-xl font-bold text-slate-800">Ticket Submitted</p>
-                <p className="mt-1 text-sm text-slate-500">We'll get back to you within 24 hours.</p>
-              </div>
-            ) : (
-              <>
-                <h3 className="font-heading text-lg font-bold text-slate-900">Submit a Ticket</h3>
-                <p className="mb-6 text-sm text-slate-500">Describe your issue and we'll respond promptly.</p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">Category</label>
-                    <select value={category} onChange={(e) => setCategory(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10">
-                      {["General", "Loan", "Accounting", "Dividend", "Account", "Technical"].map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">Subject</label>
-                    <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Brief summary of your issue"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">Message</label>
-                    <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Describe your issue in detail..."
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
-                  </div>
-                  <button onClick={handleSubmitTicket} disabled={!subject.trim() || !message.trim()}
-                    className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(11,60,93,0.18)] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Send className="h-4 w-4" /> Submit Ticket
+                ))
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white py-16">
+                  <p className="text-lg font-medium text-slate-500">Failed to load tickets</p>
+                  <button onClick={() => { setLoading(true); fetchTickets() }} className="mt-4 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-white shadow-lg">
+                    Retry
                   </button>
                 </div>
-              </>
-            )}
-          </motion.div>
-        )}
+              ) : tickets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white py-16">
+                  <CheckCircle className="h-14 w-14 text-emerald-300" />
+                  <p className="mt-4 text-lg font-medium text-slate-500">No tickets</p>
+                  <p className="text-sm text-slate-400">All your issues are resolved.</p>
+                </div>
+              ) : (
+                tickets.map((t, i) => (
+                  <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                    className="flex items-start justify-between rounded-2xl border border-slate-100 bg-white px-5 py-4 transition-all hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-800">{t.subject}</p>
+                        {statusBadge(t.status)}
+                      </div>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                        <span>{t.category}</span>
+                        <span>·</span>
+                        <span>Priority: {t.priority}</span>
+                        <span>·</span>
+                        <span>Created: {formatDate(t.createdAt)}</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                  </motion.div>
+                ))
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "faq" && (
+            <motion.div key="faq" variants={itemVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }} className="space-y-2">
+              {faqs.map((f, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                  className="rounded-2xl border border-slate-100 bg-white">
+                  <button onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left">
+                    <div className="flex items-center gap-3">
+                      <HelpCircle className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm font-medium text-slate-800">{f.q}</span>
+                    </div>
+                    <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", expandedFaq === i && "rotate-180")} />
+                  </button>
+                  {expandedFaq === i && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-slate-100 px-5 py-4">
+                      <p className="text-sm text-slate-600">{f.a}</p>
+                    </motion.div>
+                  )}
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {activeTab === "new" && (
+            <motion.div key="new" variants={itemVariants} initial="hidden" animate="visible" exit={{ opacity: 0 }} className="rounded-2xl border border-slate-100 bg-white p-6 sm:p-8">
+              {submitted ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <CheckCircle className="h-16 w-16 text-emerald-500" />
+                  <p className="mt-4 text-xl font-bold text-slate-800">Ticket Submitted</p>
+                  <p className="mt-1 text-sm text-slate-500">We'll get back to you within 24 hours.</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-heading text-lg font-bold text-slate-900">Submit a Ticket</h3>
+                  <p className="mb-6 text-sm text-slate-500">Describe your issue and we'll respond promptly.</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">Category</label>
+                      <select value={category} onChange={(e) => setCategory(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10">
+                        {["General", "Loan", "Accounting", "Dividend", "Account", "Technical"].map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">Priority</label>
+                      <select value={priority} onChange={(e) => setPriority(e.target.value as "low" | "medium" | "high")}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">Subject</label>
+                      <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Brief summary of your issue"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">Message</label>
+                      <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Describe your issue in detail..."
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                    <button onClick={handleSubmitTicket} disabled={!subject.trim() || !message.trim() || submitting}
+                      className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(11,60,93,0.18)] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {submitting ? "Submitting..." : "Submit Ticket"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   )

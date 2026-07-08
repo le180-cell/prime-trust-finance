@@ -43,6 +43,8 @@ export async function POST(request: Request) {
     "INSERT INTO users (email, username, passwordHash, role) VALUES (?, ?, ?, ?)"
   ).run(email, username, passwordHash, "user")
 
+  const userId = result.lastInsertRowid as number
+
   await db.prepare(
     `INSERT INTO members (
       firstName, lastName, username, gender, dateOfBirth,
@@ -60,7 +62,21 @@ export async function POST(request: Request) {
     profilePhoto || null,
   )
 
-  const token = await signToken({ userId: result.lastInsertRowid as number, email, role: "user" })
+  const member = await db.prepare("SELECT id FROM members WHERE email = ?").get(email) as { id: number } | undefined
+
+  if (member) {
+    await db.prepare(
+      "INSERT INTO savings_accounts (memberId, balance, interestRate, monthlyContribution, totalDeposits, totalWithdrawn, interestEarned) VALUES (?, 0, 4.5, 0, 0, 0, 0)"
+    ).run(member.id)
+    await db.prepare(
+      "INSERT INTO notifications (memberId, title, message, type) VALUES (?, ?, ?, ?)"
+    ).run(member.id, "Welcome to IAS!", "Your account has been created successfully. Start saving today!", "success")
+    await db.prepare(
+      "INSERT INTO member_activities (memberId, action, description, category) VALUES (?, ?, ?, ?)"
+    ).run(member.id, "Account Created", "Member registration completed successfully.", "auth")
+  }
+
+  const token = await signToken({ userId, email, role: "user" })
 
   const response = NextResponse.json({ success: true, user: { id: result.lastInsertRowid, email, username, role: "user" } }, { status: 201 })
   response.cookies.set("ias_token", token, {

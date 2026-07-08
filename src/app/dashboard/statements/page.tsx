@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   FileText, Download, Eye, Calendar, ChevronDown, Search, Printer,
   TrendingUp, TrendingDown, FileDown, CheckCircle,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency, formatDate } from "@/lib/utils"
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } }
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }
@@ -14,9 +14,9 @@ const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 
 interface Statement {
   id: number
   period: string
-  month: string
+  month: number
   year: number
-  type: "Monthly" | "Annual" | "Quarterly"
+  type: string
   totalCredits: number
   totalDebits: number
   openingBalance: number
@@ -25,26 +25,63 @@ interface Statement {
   downloaded: boolean
 }
 
-const mockStatements: Statement[] = [
-  { id: 1, period: "June 2026", month: "June", year: 2026, type: "Monthly", totalCredits: 150000, totalDebits: 285000, openingBalance: 450000, closingBalance: 315000, generatedDate: "2026-07-01", downloaded: false },
-  { id: 2, period: "May 2026", month: "May", year: 2026, type: "Monthly", totalCredits: 200000, totalDebits: 150000, openingBalance: 400000, closingBalance: 450000, generatedDate: "2026-06-01", downloaded: true },
-  { id: 3, period: "April 2026", month: "April", year: 2026, type: "Monthly", totalCredits: 100000, totalDebits: 120000, openingBalance: 420000, closingBalance: 400000, generatedDate: "2026-05-01", downloaded: true },
-  { id: 4, period: "Q1 2026", month: "Q1", year: 2026, type: "Quarterly", totalCredits: 450000, totalDebits: 350000, openingBalance: 350000, closingBalance: 450000, generatedDate: "2026-04-01", downloaded: false },
-  { id: 5, period: "March 2026", month: "March", year: 2026, type: "Monthly", totalCredits: 120000, totalDebits: 80000, openingBalance: 380000, closingBalance: 420000, generatedDate: "2026-04-01", downloaded: true },
-  { id: 6, period: "2025 Annual", month: "Annual", year: 2025, type: "Annual", totalCredits: 1200000, totalDebits: 950000, openingBalance: 250000, closingBalance: 500000, generatedDate: "2026-01-05", downloaded: false },
-]
-
 export default function StatementsPage() {
-  const [statements] = useState<Statement[]>(mockStatements)
+  const [statements, setStatements] = useState<Statement[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("All")
   const [expandedId, setExpandedId] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch("/api/dashboard/statements")
+      .then((r) => r.json())
+      .then((data) => setStatements(data))
+      .catch(() => setStatements([]))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = statements.filter((s) => {
     if (typeFilter !== "All" && s.type !== typeFilter) return false
     if (search && !s.period.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
+
+  if (loading) {
+    return (
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-[#0E4F75] to-[#06263C] p-6 text-white shadow-[0_24px_60px_rgba(11,60,93,0.18)] sm:p-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(244,180,0,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(22,163,74,0.14),transparent_26%)]" />
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-white/20 bg-white/10"><FileText className="h-6 w-6 text-accent" /></div>
+                <div>
+                  <h1 className="font-heading text-2xl font-bold sm:text-3xl">Statements</h1>
+                  <p className="text-sm text-white/65">Download monthly, quarterly & annual statements</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex animate-pulse items-center justify-between rounded-2xl border border-slate-100 bg-white px-5 py-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-slate-100" />
+                <div className="space-y-2">
+                  <div className="h-4 w-40 rounded bg-slate-100" />
+                  <div className="h-3 w-60 rounded bg-slate-100" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="h-8 w-8 rounded-lg bg-slate-100" />
+                <div className="h-8 w-8 rounded-lg bg-slate-100" />
+                <div className="h-8 w-8 rounded-lg bg-slate-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
@@ -91,10 +128,10 @@ export default function StatementsPage() {
                       <div>
                         <p className="font-heading font-bold text-slate-800">{s.period}<span className="ml-2 text-[10px] font-normal text-slate-400">{s.type}</span></p>
                         <div className="mt-0.5 flex items-center gap-3 text-xs text-slate-500">
-                          <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-emerald-500" />RWF {new Intl.NumberFormat("en-US").format(s.totalCredits)}</span>
-                          <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500" />RWF {new Intl.NumberFormat("en-US").format(s.totalDebits)}</span>
+                          <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-emerald-500" />{formatCurrency(s.totalCredits)}</span>
+                          <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500" />{formatCurrency(s.totalDebits)}</span>
                           <span className="text-slate-300">|</span>
-                          <span>Balance: RWF {new Intl.NumberFormat("en-US").format(s.closingBalance)}</span>
+                          <span>Balance: {formatCurrency(s.closingBalance)}</span>
                         </div>
                       </div>
                     </div>
@@ -115,10 +152,10 @@ export default function StatementsPage() {
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Opening Balance</p><p className="mt-1 font-bold text-slate-800">RWF {new Intl.NumberFormat("en-US").format(s.openingBalance)}</p></div>
-                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Closing Balance</p><p className="mt-1 font-bold text-slate-800">RWF {new Intl.NumberFormat("en-US").format(s.closingBalance)}</p></div>
-                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Total Credits</p><p className="mt-1 font-bold text-emerald-700">+RWF {new Intl.NumberFormat("en-US").format(s.totalCredits)}</p></div>
-                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Total Debits</p><p className="mt-1 font-bold text-red-700">-RWF {new Intl.NumberFormat("en-US").format(s.totalDebits)}</p></div>
+                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Opening Balance</p><p className="mt-1 font-bold text-slate-800">{formatCurrency(s.openingBalance)}</p></div>
+                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Closing Balance</p><p className="mt-1 font-bold text-slate-800">{formatCurrency(s.closingBalance)}</p></div>
+                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Total Credits</p><p className="mt-1 font-bold text-emerald-700">+{formatCurrency(s.totalCredits)}</p></div>
+                        <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Total Debits</p><p className="mt-1 font-bold text-red-700">-{formatCurrency(s.totalDebits)}</p></div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5"><Download className="h-3.5 w-3.5" /> Download PDF</button>

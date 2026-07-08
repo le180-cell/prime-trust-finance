@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin,
@@ -18,20 +18,11 @@ interface CalendarEvent {
   id: number
   title: string
   date: string
-  time: string
+  time: string | null
   type: "payment" | "meeting" | "deadline" | "disbursement" | "reminder"
   amount?: number
   description?: string
 }
-
-const initialEvents: CalendarEvent[] = [
-  { id: 1, title: "Loan Installment Due", date: "2026-07-05", time: "All Day", type: "payment", amount: 285000, description: "Monthly development loan installment" },
-  { id: 2, title: "Board Meeting", date: "2026-07-10", time: "10:00 AM", type: "meeting", description: "Quarterly board meeting at IAS HQ" },
-  { id: 3, title: "Savings Contribution Deadline", date: "2026-07-15", time: "11:59 PM", type: "deadline", amount: 50000, description: "Monthly savings contribution" },
-  { id: 4, title: "Loan Disbursement", date: "2026-07-08", time: "09:00 AM", type: "disbursement", amount: 2000000, description: "Approved education loan disbursement" },
-  { id: 5, title: "Dividend Payment", date: "2026-07-20", time: "All Day", type: "payment", amount: 25000, description: "Annual dividend credited" },
-  { id: 6, title: "AGM - Annual General Meeting", date: "2026-08-15", time: "10:00 AM", type: "meeting", description: "Annual General Meeting at Kigali Convention Centre" },
-]
 
 const typeStyles = {
   payment: "bg-red-50 border-red-200 text-red-700",
@@ -46,24 +37,59 @@ const typeIcons = {
   disbursement: CreditCard, reminder: Info,
 }
 
+function Skeleton({ className = "" }: { className?: string }) { return <div className={`animate-pulse rounded-2xl bg-slate-100 ${className}`} /> }
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6 p-6">
+      <Skeleton className="h-36 rounded-3xl" />
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Skeleton className="h-96 rounded-2xl" />
+        <Skeleton className="h-72 rounded-2xl" />
+      </div>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   const now = new Date()
   const [currentMonth, setCurrentMonth] = useState(now.getMonth())
   const [currentYear, setCurrentYear] = useState(now.getFullYear())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const [formTitle, setFormTitle] = useState("")
+  const [formDate, setFormDate] = useState("")
+  const [formTime, setFormTime] = useState("")
+  const [formType, setFormType] = useState<CalendarEvent["type"]>("reminder")
+  const [formAmount, setFormAmount] = useState("")
+  const [formDescription, setFormDescription] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(false)
+    fetch("/api/dashboard/calendar")
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
+      .then((data) => setEvents(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay()
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {}
-    for (const e of initialEvents) {
+    for (const e of events) {
       if (!map[e.date]) map[e.date] = []
       map[e.date].push(e)
     }
     return map
-  }, [])
+  }, [events])
 
   const selectedEvents = selectedDate ? eventsByDate[selectedDate] || [] : []
 
@@ -88,6 +114,49 @@ export default function CalendarPage() {
   }
 
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+
+  async function handleAddEvent(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formTitle || !formDate) return
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/dashboard/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formTitle,
+          date: formDate,
+          time: formTime || null,
+          type: formType,
+          amount: formAmount ? Number(formAmount) : null,
+          description: formDescription || null,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      const result = await res.json()
+      const newEvent: CalendarEvent = {
+        id: result.id,
+        title: formTitle,
+        date: formDate,
+        time: formTime || null,
+        type: formType,
+        amount: formAmount ? Number(formAmount) : undefined,
+        description: formDescription || undefined,
+      }
+      setEvents((prev) => [...prev, newEvent])
+      setShowAddModal(false)
+      setFormTitle("")
+      setFormDate("")
+      setFormTime("")
+      setFormType("reminder")
+      setFormAmount("")
+      setFormDescription("")
+    } catch {
+      //
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   function renderCalendar() {
     const cells = []
@@ -119,6 +188,8 @@ export default function CalendarPage() {
     return cells
   }
 
+  if (loading) return <PageSkeleton />
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -137,59 +208,67 @@ export default function CalendarPage() {
           </div>
         </motion.div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={prevMonth} className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"><ChevronLeft className="h-4 w-4" /></button>
-                <h3 className="font-heading text-lg font-bold text-slate-900">{MONTHS[currentMonth]} {currentYear}</h3>
-                <button onClick={nextMonth} className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"><ChevronRight className="h-4 w-4" /></button>
-              </div>
-              <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white shadow-[0_4px_12px_rgba(11,60,93,0.2)] transition hover:-translate-y-0.5">
-                <Plus className="h-3.5 w-3.5" /> Add Event
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAYS.map((d) => <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">{d}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {renderCalendar()}
-            </div>
+        {error ? (
+          <motion.div variants={itemVariants} className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white py-16">
+            <AlertCircle className="h-14 w-14 text-red-300" />
+            <p className="mt-4 text-lg font-medium text-slate-500">Failed to load calendar</p>
+            <button onClick={() => { setLoading(true); setError(false); fetch("/api/dashboard/calendar").then((r) => { if (!r.ok) throw new Error(); return r.json() }).then((data) => { setEvents(data); setLoading(false) }).catch(() => setError(true)) }} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">Retry</button>
           </motion.div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button onClick={prevMonth} className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"><ChevronLeft className="h-4 w-4" /></button>
+                  <h3 className="font-heading text-lg font-bold text-slate-900">{MONTHS[currentMonth]} {currentYear}</h3>
+                  <button onClick={nextMonth} className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"><ChevronRight className="h-4 w-4" /></button>
+                </div>
+                <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white shadow-[0_4px_12px_rgba(11,60,93,0.2)] transition hover:-translate-y-0.5">
+                  <Plus className="h-3.5 w-3.5" /> Add Event
+                </button>
+              </div>
 
-          <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-            <h3 className="font-heading text-base font-bold text-slate-900 mb-4">
-              {selectedDate ? new Date(selectedDate).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "Select a date"}
-            </h3>
-            {selectedEvents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10">
-                <CheckCircle className="h-10 w-10 text-slate-200" />
-                <p className="mt-3 text-sm text-slate-400">{selectedDate ? "No events" : "Click a date to view events"}</p>
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {DAYS.map((d) => <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">{d}</div>)}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedEvents.map((e) => {
-                  const Icon = typeIcons[e.type]
-                  return (
-                    <div key={e.id} className={cn("rounded-xl border p-4", typeStyles[e.type])}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <p className="text-sm font-bold">{e.title}</p>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 text-xs opacity-75">
-                        <Clock className="h-3 w-3" />
-                        <span>{e.time}</span>
-                        {e.amount && <><span>·</span><span>RWF {new Intl.NumberFormat("en-US").format(e.amount)}</span></>}
-                      </div>
-                      {e.description && <p className="mt-1.5 text-xs opacity-70">{e.description}</p>}
-                    </div>
-                  )
-                })}
+              <div className="grid grid-cols-7 gap-1">
+                {renderCalendar()}
               </div>
-            )}
-          </motion.div>
-        </div>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+              <h3 className="font-heading text-base font-bold text-slate-900 mb-4">
+                {selectedDate ? new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "Select a date"}
+              </h3>
+              {selectedEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <CheckCircle className="h-10 w-10 text-slate-200" />
+                  <p className="mt-3 text-sm text-slate-400">{selectedDate ? "No events" : "Click a date to view events"}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedEvents.map((e) => {
+                    const Icon = typeIcons[e.type]
+                    return (
+                      <div key={e.id} className={cn("rounded-xl border p-4", typeStyles[e.type])}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <p className="text-sm font-bold">{e.title}</p>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 text-xs opacity-75">
+                          <Clock className="h-3 w-3" />
+                          <span>{e.time || "All Day"}</span>
+                          {e.amount ? <><span>·</span><span>RWF {new Intl.NumberFormat("en-US").format(e.amount)}</span></> : null}
+                        </div>
+                        {e.description ? <p className="mt-1.5 text-xs opacity-70">{e.description}</p> : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
 
         <AnimatePresence>
           {showAddModal && (
@@ -201,19 +280,48 @@ export default function CalendarPage() {
                   <h3 className="font-heading text-lg font-bold text-slate-900">New Event</h3>
                   <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
-                <div className="space-y-4">
+                <form onSubmit={handleAddEvent} className="space-y-4">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Title</label>
-                    <input className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" placeholder="Event title" />
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Title *</label>
+                    <input value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" placeholder="Event title" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-700">Date</label>
-                    <input type="date" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Date *</label>
+                    <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
                   </div>
-                  <button className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(11,60,93,0.18)] transition hover:-translate-y-0.5">
-                    Create Event
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Time</label>
+                    <input type="time" value={formTime} onChange={(e) => setFormTime(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Type</label>
+                    <select value={formType} onChange={(e) => setFormType(e.target.value as CalendarEvent["type"])}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10">
+                      <option value="reminder">Reminder</option>
+                      <option value="payment">Payment</option>
+                      <option value="meeting">Meeting</option>
+                      <option value="deadline">Deadline</option>
+                      <option value="disbursement">Disbursement</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Amount (RWF)</label>
+                    <input type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-700">Description</label>
+                    <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" placeholder="Optional description" />
+                  </div>
+                  <button type="submit" disabled={submitting}
+                    className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(11,60,93,0.18)] transition hover:-translate-y-0.5 disabled:opacity-60">
+                    {submitting ? "Creating..." : "Create Event"}
                   </button>
-                </div>
+                </form>
               </motion.div>
             </motion.div>
           )}

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, TrendingUp, Users, PiggyBank, HandCoins,
   Receipt, CreditCard, Percent, AlertTriangle, BarChart3,
   ScrollText, Shield, Settings, UserCircle, LogOut,
-  Menu, ChevronLeft, MessageSquareQuote, Info, X,
+  Menu, ChevronLeft, MessageSquareQuote, Info, Globe, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -23,6 +23,7 @@ const navItems = [
   { href: "/admin/interest", label: "Interest", icon: Percent },
   { href: "/admin/penalties", label: "Penalties", icon: AlertTriangle },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+  { href: "/admin/website", label: "Website", icon: Globe },
   { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquareQuote },
   { href: "/admin/about", label: "About Page", icon: Info },
   { href: "/admin/history", label: "History", icon: ScrollText },

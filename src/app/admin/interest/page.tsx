@@ -95,18 +95,17 @@ export default function InterestPolicyPage() {
   const [previewDuration, setPreviewDuration] = useState(12)
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("ias-interest-policy")
-      if (stored) {
-        const parsed = JSON.parse(stored) as { policy: PolicyData; status: string }
-        setPolicy(parsed.policy)
-        setSavedPolicy(parsed.policy)
-        setStatus(parsed.status as "active" | "configured")
-      }
-    } catch {
-      // ignore
-    }
-    setLoading(false)
+    fetch("/api/admin/interest-policies")
+      .then(r => r.json())
+      .then((data: Record<string, unknown>[]) => {
+        const loanPolicy = data.find((p: Record<string, unknown>) => p.type === "loan")
+        if (loanPolicy) {
+          const p: PolicyData = { interestType: "flat", rate: loanPolicy.rate as number, period: "monthly", minDuration: 1, maxDuration: 60, minAmount: 50000, maxAmount: 50000000, autoCalc: true }
+          setPolicy(p); setSavedPolicy(p); setStatus("configured")
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const preview = useMemo(() => {
@@ -146,17 +145,22 @@ export default function InterestPolicyPage() {
     return { interest: Math.round(interest), totalRepayment: Math.round(totalRepayment), monthlyPayment: Math.round(monthlyPayment), schedule: remainingSchedule }
   }, [previewAmount, previewDuration, policy.interestType, policy.rate])
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError("")
     try {
-      localStorage.setItem("ias-interest-policy", JSON.stringify({ policy, status: "configured" }))
+      const res = await fetch("/api/admin/interest-policies", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ policies: [{ name: "Loan Interest Standard", rate: policy.rate, type: "loan", minBalance: 0, maxBalance: 999999999, active: 1 }] }),
+      })
+      if (!res.ok) { setError("Failed to save policy"); return }
       setSavedPolicy(policy)
       setStatus("configured")
       toast.success("Interest policy saved.")
     } catch {
-      setError("Failed to save to local storage.")
+      setError("Network error. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -183,7 +187,7 @@ export default function InterestPolicyPage() {
           </div>
           <h2 className="font-heading text-lg font-semibold text-red-700 dark:text-red-400 mb-1">{error}</h2>
           <p className="text-sm text-red-500 dark:text-red-400/80 mb-4">Could not load interest policy configuration.</p>
-          <button onClick={() => { setError(""); setLoading(true); try { const stored = localStorage.getItem("ias-interest-policy"); if (stored) { const parsed = JSON.parse(stored); setPolicy(parsed.policy); setSavedPolicy(parsed.policy); setStatus(parsed.status || "configured") } } catch {} setLoading(false) }}
+          <button onClick={() => { setError(""); setLoading(true); fetch("/api/admin/interest-policies").then(r => r.json()).then((data: Record<string, unknown>[]) => { const p = data.find((x: Record<string, unknown>) => x.type === "loan"); if (p) { const pp: PolicyData = { interestType: "flat", rate: p.rate as number, period: "monthly", minDuration: 1, maxDuration: 60, minAmount: 50000, maxAmount: 50000000, autoCalc: true }; setPolicy(pp); setSavedPolicy(pp); setStatus("configured") } }).catch(() => {}).finally(() => setLoading(false)) }}
             className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors">
             <RefreshCw className="h-4 w-4" /> Retry
           </button>
