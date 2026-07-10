@@ -7,7 +7,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const member = await db.prepare("SELECT * FROM members WHERE email = ?").get(session.email) as Record<string, unknown> | undefined
-  if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 })
+  if (!member) return NextResponse.json({ balance: 0, walletId: "", currency: "RWF", monthlyIn: 0, monthlyOut: 0, totalDeposits: 0, totalWithdrawn: 0, netPosition: 0, recentTransactions: [] })
 
   const mid = member.id as number
   const savingsAcct = await db.prepare("SELECT * FROM savings_accounts WHERE memberId = ?").get(mid) as Record<string, unknown> | undefined

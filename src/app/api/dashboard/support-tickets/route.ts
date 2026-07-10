@@ -7,7 +7,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const member = await db.prepare("SELECT id FROM members WHERE email = ?").get(session.email) as { id: number } | undefined
-  if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 })
+  if (!member) return NextResponse.json([])
 
   const tickets = await db.prepare("SELECT * FROM support_tickets WHERE memberId = ? ORDER BY createdAt DESC").all(member.id) as Record<string, unknown>[]
   return NextResponse.json(tickets)

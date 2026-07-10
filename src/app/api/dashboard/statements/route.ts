@@ -7,7 +7,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const member = await db.prepare("SELECT id FROM members WHERE email = ?").get(session.email) as { id: number } | undefined
-  if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 })
+  if (!member) return NextResponse.json([])
 
   const payments = await db.prepare("SELECT * FROM payments WHERE memberId = ? ORDER BY paidAt DESC").all(member.id) as Record<string, unknown>[]
   const now = new Date()
