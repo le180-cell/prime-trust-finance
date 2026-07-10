@@ -18,16 +18,17 @@ export async function getSession() {
   const payload = await verifyToken(token)
   if (!payload) return null
 
-  let user = await db.prepare("SELECT id, email, username, role FROM users WHERE id = ?").get(payload.userId) as
+  const user = await db.prepare("SELECT id, email, username, role FROM users WHERE id = ?").get(payload.userId) as
     | { id: number; email: string; username: string | null; role: string }
     | null
-  if (!user) {
-    user = await db.prepare("SELECT id, email, username, role FROM users WHERE email = ?").get(payload.email) as
-      | { id: number; email: string; username: string | null; role: string }
-      | null
-  }
-  if (!user) return null
-  return { id: user.id, email: user.email, username: user.username, role: user.role }
+  if (user) return { id: user.id, email: user.email, username: user.username, role: user.role }
+
+  const byEmail = await db.prepare("SELECT id, email, username, role FROM users WHERE email = ?").get(payload.email) as
+    | { id: number; email: string; username: string | null; role: string }
+    | null
+  if (byEmail) return { id: byEmail.id, email: byEmail.email, username: byEmail.username, role: byEmail.role }
+
+  return { id: payload.userId, email: payload.email, username: payload.email.split("@")[0], role: payload.role }
 }
 
 export { signToken, verifyToken, getAuthCookieName }
