@@ -45,7 +45,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetch("/api/dashboard/profile")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("Unauthorized"); return r.json() })
       .then((data) => {
         setProfile(data.profile)
         setForm({ ...data.profile })

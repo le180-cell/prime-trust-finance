@@ -64,11 +64,8 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then((d: DashboardData & { error?: string }) => {
-        if (d.error) { setError(d.error); return }
-        setData(d)
-      })
+      .then((r) => { if (!r.ok) throw new Error("Unauthorized"); return r.json() })
+      .then((d: DashboardData) => { setData(d) })
       .catch(() => setError("Failed to load payments"))
       .finally(() => setLoading(false))
   }, [])

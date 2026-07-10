@@ -84,11 +84,8 @@ export default function LoansPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then((d: DashboardData & { error?: string }) => {
-        if (d.error) { setError(d.error); return }
-        setData(d)
-      })
+      .then((r) => { if (!r.ok) throw new Error("Unauthorized"); return r.json() })
+      .then((d: DashboardData) => { setData(d) })
       .catch(() => setError("Failed to load loan data"))
       .finally(() => setLoading(false))
   }, [])
@@ -456,13 +453,13 @@ export default function LoansPage() {
                           reference: `LOAN-${payModal.monthIndex + 1}`,
                         }),
                       })
-                      const data = await res.json()
-                      if (!res.ok) { setPayError(data.error || "Payment failed"); setPayLoading(false); return }
+                      const result = await res.json()
+                      if (!res.ok) { setPayError(result.error || "Payment failed"); setPayLoading(false); return }
                       setPaySuccess(`Paid RWF ${new Intl.NumberFormat("en-US").format(payAmount)} for ${loan?.paymentSchedule[payModal.monthIndex]?.month}`)
                       if (loan) {
                         const updated = [...loan.paymentSchedule]
                         updated[payModal.monthIndex] = { ...updated[payModal.monthIndex], paid: true }
-                        setData({ ...data, loan: { ...loan, paymentSchedule: updated, paidMonths: updated.filter((e) => e.paid).length, remainingBalance: data.remainingBalance ?? Math.max(0, loan.remainingBalance - payAmount) } })
+                        setData((prev) => prev ? { ...prev, loan: { ...loan, paymentSchedule: updated, paidMonths: updated.filter((e) => e.paid).length, remainingBalance: result.remainingBalance ?? Math.max(0, loan.remainingBalance - payAmount) } } : prev)
                       }
                     } catch { setPayError("Network error. Please try again.") }
                     finally { setPayLoading(false) }
