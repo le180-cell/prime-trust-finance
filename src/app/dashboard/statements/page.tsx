@@ -34,10 +34,9 @@ export default function StatementsPage() {
 
   useEffect(() => {
     fetch("/api/dashboard/statements")
-      .then((r) => r.json())
-      .then((data) => setStatements(data))
-      .catch(() => setStatements([]))
-      .finally(() => setLoading(false))
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
+      .then((data) => { setStatements(data); setLoading(false) })
+      .catch(() => { setStatements([]); setLoading(false) })
   }, [])
 
   const filtered = statements.filter((s) => {

@@ -87,15 +87,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     fetch("/api/dashboard/user")
-      .then((r) => r.json())
-      .then((d) => { if (d.user) setUser(d.user) })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.user) setUser(d.user) })
       .catch(() => {})
   }, [])
 
   const loadNotifications = () => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then((d) => { if (d.notifications) setNotifications(d.notifications) })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.notifications) setNotifications(d.notifications) })
       .catch(() => {})
   }
 

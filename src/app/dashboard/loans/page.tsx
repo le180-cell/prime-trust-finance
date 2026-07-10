@@ -74,7 +74,7 @@ export default function LoansPage() {
       setPayError("")
       setPaySuccess("")
       fetch("/api/bank-accounts")
-        .then(r => r.json())
+        .then(r => r.ok ? r.json() : [])
         .then(data => {
           if (Array.isArray(data)) setBankAccounts(data)
         })

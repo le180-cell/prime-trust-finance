@@ -29,10 +29,9 @@ export default function ReceivablesPage() {
 
   useEffect(() => {
     fetch("/api/dashboard/receivables")
-      .then((r) => r.json())
-      .then((data) => setReceivables(data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
+      .then((data) => { setReceivables(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   const today = new Date()

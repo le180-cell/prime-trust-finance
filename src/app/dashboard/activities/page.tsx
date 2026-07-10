@@ -49,10 +49,9 @@ export default function ActivitiesPage() {
 
   useEffect(() => {
     fetch("/api/dashboard/activities")
-      .then((r) => r.json())
-      .then((data) => setActivities(data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
+      .then((data) => { setActivities(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   const categories = ["All", ...Array.from(new Set(activities.map((a) => a.category)))]
