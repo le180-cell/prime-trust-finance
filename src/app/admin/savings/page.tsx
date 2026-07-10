@@ -22,6 +22,7 @@ interface Transaction {
 
 interface SavingsAccount {
   id: number
+  memberId: number
   memberName: string
   memberInitials: string
   accountNumber: string
@@ -37,105 +38,12 @@ interface SavingsAccount {
   totalWithdrawals: number
 }
 
-const mockAccounts: SavingsAccount[] = [
-  {
-    id: 1, memberName: "Jean-Pierre Habimana", memberInitials: "JH",
-    accountNumber: "SAV-2024-001", balance: 2500000, interestRate: 4.5,
-    status: "Active", lastDeposit: "2026-07-01", openedDate: "2024-01-15",
-    accountType: "Premium",
-    transactions: [
-      { id: 1, type: "deposit", amount: 500000, date: "2026-07-01", description: "Monthly contribution" },
-      { id: 2, type: "deposit", amount: 200000, date: "2026-06-15", description: "Bonus savings" },
-      { id: 3, type: "withdrawal", amount: 100000, date: "2026-06-10", description: "Emergency withdrawal" },
-      { id: 4, type: "deposit", amount: 500000, date: "2026-06-01", description: "Monthly contribution" },
-    ],
-    interestEarned: 84375, totalDeposits: 3200000, totalWithdrawals: 700000,
-  },
-  {
-    id: 2, memberName: "Alice Uwimana", memberInitials: "AU",
-    accountNumber: "SAV-2024-002", balance: 800000, interestRate: 3.0,
-    status: "Active", lastDeposit: "2026-06-28", openedDate: "2024-03-10",
-    accountType: "Regular",
-    transactions: [
-      { id: 5, type: "deposit", amount: 100000, date: "2026-06-28", description: "Monthly contribution" },
-      { id: 6, type: "deposit", amount: 50000, date: "2026-06-01", description: "Monthly contribution" },
-    ],
-    interestEarned: 18000, totalDeposits: 950000, totalWithdrawals: 150000,
-  },
-  {
-    id: 3, memberName: "David Kagame", memberInitials: "DK",
-    accountNumber: "SAV-2024-003", balance: 5000000, interestRate: 5.0,
-    status: "Active", lastDeposit: "2026-07-02", openedDate: "2024-02-20",
-    accountType: "Premium",
-    transactions: [
-      { id: 7, type: "deposit", amount: 1000000, date: "2026-07-02", description: "Quarterly contribution" },
-      { id: 8, type: "deposit", amount: 1000000, date: "2026-04-02", description: "Quarterly contribution" },
-      { id: 9, type: "deposit", amount: 1000000, date: "2026-01-02", description: "Quarterly contribution" },
-    ],
-    interestEarned: 187500, totalDeposits: 6000000, totalWithdrawals: 1000000,
-  },
-  {
-    id: 4, memberName: "Grace Mukamana", memberInitials: "GM",
-    accountNumber: "SAV-2024-004", balance: 350000, interestRate: 2.5,
-    status: "Dormant", lastDeposit: "2026-03-15", openedDate: "2024-05-08",
-    accountType: "Student",
-    transactions: [
-      { id: 10, type: "deposit", amount: 50000, date: "2026-03-15", description: "Monthly contribution" },
-      { id: 11, type: "deposit", amount: 50000, date: "2026-02-15", description: "Monthly contribution" },
-    ],
-    interestEarned: 5250, totalDeposits: 450000, totalWithdrawals: 100000,
-  },
-  {
-    id: 5, memberName: "Patrick Niyonzima", memberInitials: "PN",
-    accountNumber: "SAV-2024-005", balance: 1500000, interestRate: 4.0,
-    status: "Active", lastDeposit: "2026-07-01", openedDate: "2024-04-12",
-    accountType: "Regular",
-    transactions: [
-      { id: 12, type: "deposit", amount: 300000, date: "2026-07-01", description: "Monthly contribution" },
-      { id: 13, type: "deposit", amount: 300000, date: "2026-06-01", description: "Monthly contribution" },
-      { id: 14, type: "withdrawal", amount: 200000, date: "2026-05-20", description: "School fees" },
-    ],
-    interestEarned: 45000, totalDeposits: 2100000, totalWithdrawals: 600000,
-  },
-  {
-    id: 6, memberName: "Beatrice Imanishimwe", memberInitials: "BI",
-    accountNumber: "SAV-2024-006", balance: 120000, interestRate: 2.5,
-    status: "Dormant", lastDeposit: "2026-02-10", openedDate: "2024-06-22",
-    accountType: "Student",
-    transactions: [
-      { id: 15, type: "deposit", amount: 30000, date: "2026-02-10", description: "Monthly contribution" },
-    ],
-    interestEarned: 1800, totalDeposits: 180000, totalWithdrawals: 60000,
-  },
-  {
-    id: 7, memberName: "Samuel Nkurunziza", memberInitials: "SN",
-    accountNumber: "SAV-2024-007", balance: 3200000, interestRate: 4.5,
-    status: "Active", lastDeposit: "2026-06-30", openedDate: "2024-01-05",
-    accountType: "Premium",
-    transactions: [
-      { id: 16, type: "deposit", amount: 600000, date: "2026-06-30", description: "Monthly contribution" },
-      { id: 17, type: "deposit", amount: 600000, date: "2026-05-30", description: "Monthly contribution" },
-      { id: 18, type: "deposit", amount: 600000, date: "2026-04-30", description: "Monthly contribution" },
-    ],
-    interestEarned: 108000, totalDeposits: 4200000, totalWithdrawals: 1000000,
-  },
-  {
-    id: 8, memberName: "Chantal Uwase", memberInitials: "CU",
-    accountNumber: "SAV-2024-008", balance: 0, interestRate: 2.5,
-    status: "Closed", lastDeposit: "2025-12-20", openedDate: "2024-07-14",
-    accountType: "Regular",
-    transactions: [
-      { id: 19, type: "withdrawal", amount: 500000, date: "2025-12-20", description: "Full withdrawal - account closed" },
-    ],
-    interestEarned: 12000, totalDeposits: 1200000, totalWithdrawals: 1200000,
-  },
-]
-
-const memberOptions = [
-  "Jean-Pierre Habimana", "Alice Uwimana", "David Kagame",
-  "Grace Mukamana", "Patrick Niyonzima", "Beatrice Imanishimwe",
-  "Samuel Nkurunziza", "Chantal Uwase", "Olivier Mugisha", "Diane Nyiraneza",
-]
+interface MemberOption {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+}
 
 const statusBadge: Record<SavingsStatus, string> = {
   Active: "bg-green-50 text-green-700 border-green-200",
@@ -151,6 +59,16 @@ const containerVariants = {
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+}
+
+function computeInitials(firstName: string, lastName: string): string {
+  return `${(firstName || "")[0] || ""}${(lastName || "")[0] || ""}`
+}
+
+function deriveAccountType(rate: number): AccountType {
+  if (rate >= 4.5) return "Premium"
+  if (rate <= 2.5) return "Student"
+  return "Regular"
 }
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -226,36 +144,62 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 interface AddAccountModalProps {
   open: boolean
   onClose: () => void
-  onSuccess: (data: { member: string; deposit: number; type: AccountType }) => void
+  onSuccess: (data: { memberId: number; memberName: string; deposit: number; type: AccountType }) => void
 }
 
 function AddAccountModal({ open, onClose, onSuccess }: AddAccountModalProps) {
-  const [member, setMember] = useState("")
+  const [memberSearch, setMemberSearch] = useState("")
   const [deposit, setDeposit] = useState("")
   const [accountType, setAccountType] = useState<AccountType>("Regular")
   const [showDropdown, setShowDropdown] = useState(false)
+  const [members, setMembers] = useState<MemberOption[]>([])
+  const [selectedMember, setSelectedMember] = useState<MemberOption | null>(null)
+  const [loadingMembers, setLoadingMembers] = useState(false)
 
-  const filteredMembers = memberOptions.filter((m) =>
-    m.toLowerCase().includes(member.toLowerCase())
+  useEffect(() => {
+    if (open) {
+      setLoadingMembers(true)
+      fetch("/api/admin/members")
+        .then((res) => res.json())
+        .then((data) => {
+          const list = (data.members as Array<Record<string, unknown>>)
+            .filter((m: any) => m.firstName || m.lastName)
+            .map((m: any) => ({
+              id: m.id,
+              firstName: m.firstName || "",
+              lastName: m.lastName || "",
+              email: m.email,
+            }))
+          setMembers(list)
+        })
+        .catch(() => toast.error("Failed to load members"))
+        .finally(() => setLoadingMembers(false))
+    }
+  }, [open])
+
+  const filteredMembers = members.filter((m) =>
+    `${m.firstName} ${m.lastName}`.toLowerCase().includes(memberSearch.toLowerCase()) ||
+    m.email.toLowerCase().includes(memberSearch.toLowerCase())
   )
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    if (!member || !deposit) {
-      toast.error("Please fill in all fields")
+    if (!selectedMember || !deposit) {
+      toast.error("Please select a member and enter a deposit amount")
       return
     }
     const amount = parseInt(deposit, 10)
-    if (isNaN(amount) || amount <= 0) {
+    if (isNaN(amount) || amount < 0) {
       toast.error("Invalid deposit amount")
       return
     }
-    onSuccess({ member, deposit: amount, type: accountType })
-    setMember("")
+    onSuccess({ memberId: selectedMember.id, memberName: `${selectedMember.firstName} ${selectedMember.lastName}`, deposit: amount, type: accountType })
+    setMemberSearch("")
     setDeposit("")
     setAccountType("Regular")
+    setSelectedMember(null)
     onClose()
-  }, [member, deposit, accountType, onSuccess, onClose])
+  }, [selectedMember, deposit, accountType, onSuccess, onClose])
 
   if (!open) return null
 
@@ -285,24 +229,29 @@ function AddAccountModal({ open, onClose, onSuccess }: AddAccountModalProps) {
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Member</label>
             <input
-              value={member}
-              onChange={(e) => { setMember(e.target.value); setShowDropdown(true) }}
+              value={memberSearch}
+              onChange={(e) => { setMemberSearch(e.target.value); setShowDropdown(true); setSelectedMember(null) }}
               onFocus={() => setShowDropdown(true)}
-              placeholder="Search member..."
+              placeholder={selectedMember ? `${selectedMember.firstName} ${selectedMember.lastName}` : "Search member..."}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
             />
             {showDropdown && filteredMembers.length > 0 && (
               <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
-                {filteredMembers.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => { setMember(m); setShowDropdown(false) }}
-                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    {m}
-                  </button>
-                ))}
+                {loadingMembers ? (
+                  <div className="px-4 py-3 text-sm text-gray-400">Loading members...</div>
+                ) : (
+                  filteredMembers.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => { setSelectedMember(m); setMemberSearch(""); setShowDropdown(false) }}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors"
+                    >
+                      {m.firstName} {m.lastName}
+                      <span className="ml-2 text-xs text-gray-400">{m.email}</span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -313,7 +262,7 @@ function AddAccountModal({ open, onClose, onSuccess }: AddAccountModalProps) {
               type="number"
               value={deposit}
               onChange={(e) => setDeposit(e.target.value)}
-              placeholder="Enter amount"
+              placeholder="Enter amount (0 for no initial deposit)"
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
             />
           </div>
@@ -341,7 +290,8 @@ function AddAccountModal({ open, onClose, onSuccess }: AddAccountModalProps) {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-light"
+            disabled={!selectedMember}
+            className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create Savings Account
           </button>
@@ -361,27 +311,60 @@ export default function AdminSavingsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const mounted = useRef(false)
 
-  useEffect(() => {
-    mounted.current = true
-    const timer = setTimeout(() => {
-      if (mounted.current) {
-        setAccounts(mockAccounts)
-        setLoading(false)
-      }
-    }, 700)
-    return () => { mounted.current = false; clearTimeout(timer) }
+  const fetchAccounts = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const res = await fetch("/api/admin/savings")
+      if (!res.ok) throw new Error("Failed to fetch")
+      const data = await res.json()
+      if (!mounted.current) return
+      const mapped: SavingsAccount[] = (data as Array<Record<string, unknown>>).map((item: any) => {
+        const firstName = item.firstName || ""
+        const lastName = item.lastName || ""
+        const txs: Transaction[] = (item.transactions || []).map((tx: any) => ({
+          id: tx.id,
+          type: tx.type === "withdrawal" || tx.type === "withdraw" ? "withdrawal" as const : "deposit" as const,
+          amount: tx.amount,
+          date: tx.createdAt || tx.date,
+          description: tx.description || "",
+        }))
+        const lastDepositTx = txs.find((t) => t.type === "deposit")
+        return {
+          id: item.id,
+          memberId: item.memberId,
+          memberName: `${firstName} ${lastName}`.trim(),
+          memberInitials: computeInitials(firstName, lastName),
+          accountNumber: `SAV-${String(item.id).padStart(4, "0")}`,
+          balance: item.balance || 0,
+          interestRate: item.interestRate || 0,
+          status: (item.status === "active" ? "Active" : item.status === "dormant" ? "Dormant" : "Closed") as SavingsStatus,
+          lastDeposit: lastDepositTx?.date || item.openedAt,
+          openedDate: item.openedAt,
+          accountType: deriveAccountType(item.interestRate || 0),
+          transactions: txs,
+          interestEarned: item.interestEarned || 0,
+          totalDeposits: item.totalDeposits || 0,
+          totalWithdrawals: item.totalWithdrawn || 0,
+        }
+      })
+      setAccounts(mapped)
+    } catch {
+      if (mounted.current) setError(true)
+    } finally {
+      if (mounted.current) setLoading(false)
+    }
   }, [])
 
+  useEffect(() => {
+    mounted.current = true
+    fetchAccounts()
+    return () => { mounted.current = false }
+  }, [fetchAccounts])
+
   const handleRetry = useCallback(() => {
-    setError(false)
-    setLoading(true)
-    setTimeout(() => {
-      if (mounted.current) {
-        setAccounts(mockAccounts)
-        setLoading(false)
-      }
-    }, 700)
-  }, [])
+    fetchAccounts()
+  }, [fetchAccounts])
 
   const toggleExpand = useCallback((id: number) => {
     setExpandedId((prev) => prev === id ? null : id)
@@ -414,41 +397,53 @@ export default function AdminSavingsPage() {
     return { activeAccounts: active, totalBalance, monthlyDeposits, avgBalance }
   }, [accounts])
 
-  const handleAddAccount = useCallback((data: { member: string; deposit: number; type: AccountType }) => {
-    const newAccount: SavingsAccount = {
-      id: accounts.length + 1,
-      memberName: data.member,
-      memberInitials: data.member.split(" ").map((w) => w[0]).join(""),
-      accountNumber: `SAV-2026-${String(accounts.length + 1).padStart(3, "0")}`,
-      balance: data.deposit,
-      interestRate: data.type === "Premium" ? 4.5 : data.type === "Student" ? 2.5 : 3.0,
-      status: "Active",
-      lastDeposit: new Date().toISOString().split("T")[0],
-      openedDate: new Date().toISOString().split("T")[0],
-      accountType: data.type,
-      transactions: [
-        { id: Date.now(), type: "deposit", amount: data.deposit, date: new Date().toISOString().split("T")[0], description: "Initial deposit" },
-      ],
-      interestEarned: 0,
-      totalDeposits: data.deposit,
-      totalWithdrawals: 0,
+  const handleAddAccount = useCallback(async (data: { memberId: number; memberName: string; deposit: number; type: AccountType }) => {
+    try {
+      const res = await fetch("/api/admin/savings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: data.memberId, initialDeposit: data.deposit, accountType: data.type }),
+      })
+      if (!res.ok) throw new Error("Failed to create account")
+      toast.success(`Savings account created for ${data.memberName}`)
+      fetchAccounts()
+    } catch {
+      toast.error("Failed to create savings account")
     }
-    setAccounts((prev) => [newAccount, ...prev])
-    toast.success(`Savings account created for ${data.member}`)
-  }, [accounts])
+  }, [fetchAccounts])
 
-  const handleSuspend = useCallback((acc: SavingsAccount) => {
-    setAccounts((prev) =>
-      prev.map((a) => a.id === acc.id ? { ...a, status: "Dormant" as SavingsStatus } : a)
-    )
-    toast.success(`${acc.memberName}'s account has been suspended`)
+  const handleSuspend = useCallback(async (acc: SavingsAccount) => {
+    try {
+      const res = await fetch("/api/admin/savings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: acc.id, status: "dormant" }),
+      })
+      if (!res.ok) throw new Error("Failed to suspend account")
+      setAccounts((prev) =>
+        prev.map((a) => a.id === acc.id ? { ...a, status: "Dormant" as SavingsStatus } : a)
+      )
+      toast.success(`${acc.memberName}'s account has been suspended`)
+    } catch {
+      toast.error("Failed to suspend account")
+    }
   }, [])
 
-  const handleClose = useCallback((acc: SavingsAccount) => {
-    setAccounts((prev) =>
-      prev.map((a) => a.id === acc.id ? { ...a, status: "Closed" as SavingsStatus } : a)
-    )
-    toast.success(`${acc.memberName}'s account has been closed`)
+  const handleClose = useCallback(async (acc: SavingsAccount) => {
+    try {
+      const res = await fetch("/api/admin/savings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: acc.id, status: "closed" }),
+      })
+      if (!res.ok) throw new Error("Failed to close account")
+      setAccounts((prev) =>
+        prev.map((a) => a.id === acc.id ? { ...a, status: "Closed" as SavingsStatus } : a)
+      )
+      toast.success(`${acc.memberName}'s account has been closed`)
+    } catch {
+      toast.error("Failed to close account")
+    }
   }, [])
 
   const filterTabs = ["All", "Active", "Dormant", "Closed"]

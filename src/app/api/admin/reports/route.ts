@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSession } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(request: NextRequest) {
   const session = await getSession()
   if (!session || session.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const limit = Math.min(Number(searchParams.get("limit")) || 100, 500)
+  const limit = Math.min(Number(searchParams.get("limit")) || 50, 200)
   const offset = Number(searchParams.get("offset")) || 0
 
   try {
-    const logs = await db.prepare(
-      "SELECT a.*, u.username as adminName, u.email as adminEmail FROM audit_logs a LEFT JOIN users u ON a.adminId = u.id ORDER BY a.createdAt DESC LIMIT ? OFFSET ?"
+    const reports = await db.prepare(
+      "SELECT * FROM reports ORDER BY generatedAt DESC LIMIT ? OFFSET ?"
     ).all(limit, offset)
-    return NextResponse.json(logs)
+    return NextResponse.json(reports)
   } catch {
-    return NextResponse.json({ error: "Failed to fetch audit logs" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
   }
 }

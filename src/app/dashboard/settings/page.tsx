@@ -1,16 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import {
   Settings, Bell, Shield, Eye, Globe, Moon, Sun,
   Lock, Smartphone, Mail, MessageSquare, ToggleLeft,
-  CheckCircle, ChevronRight, Clock,
+  CheckCircle, ChevronRight, Clock, Building2, Plus, X, Trash2, Banknote,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } }
 const itemVariants = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }
+
+interface BankAccount { id: number; bankName: string; accountName: string; accountNumber: string; accountType: string; balance: number }
 
 export default function SettingsPage() {
   const [darkMode, setDarkMode] = useState(false)
@@ -22,6 +24,33 @@ export default function SettingsPage() {
   const [twoFactor, setTwoFactor] = useState(false)
   const [sessionExpiry, setSessionExpiry] = useState("30min")
   const [savedSection, setSavedSection] = useState<string | null>(null)
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [showAddBank, setShowAddBank] = useState(false)
+  const [bankForm, setBankForm] = useState({ bankName: "", accountName: "", accountNumber: "", accountType: "checking" })
+  const [bankLoading, setBankLoading] = useState(false)
+
+  const loadBankAccounts = () => {
+    fetch("/api/bank-accounts")
+      .then(r => r.json())
+      .then((data) => { if (Array.isArray(data)) setBankAccounts(data) })
+      .catch(() => {})
+  }
+
+  useEffect(loadBankAccounts, [])
+
+  const addBankAccount = async () => {
+    if (!bankForm.bankName || !bankForm.accountName || !bankForm.accountNumber) return
+    setBankLoading(true)
+    try {
+      const res = await fetch("/api/bank-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bankForm),
+      })
+      if (res.ok) { setShowAddBank(false); setBankForm({ bankName: "", accountName: "", accountNumber: "", accountType: "checking" }); loadBankAccounts() }
+    } catch {}
+    finally { setBankLoading(false) }
+  }
 
   function toggle(key: keyof typeof notifications) {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -106,6 +135,63 @@ export default function SettingsPage() {
             <SettingToggle label="Loan Updates" description="Loan application status changes" checked={notifications.loanUpdates} onChange={() => toggle("loanUpdates")} />
             <SettingToggle label="Marketing" description="Promotions and new products" checked={notifications.marketing} onChange={() => toggle("marketing")} />
           </div>
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Building2 className="h-5 w-5" /></div>
+              <div>
+                <h3 className="font-heading text-base font-bold text-slate-900">Linked Bank Accounts</h3>
+                <p className="text-xs text-slate-500">Manage accounts for payments</p>
+              </div>
+            </div>
+            <button onClick={() => setShowAddBank(!showAddBank)} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-primary/90">
+              <Plus className="h-3.5 w-3.5" /> Link Account
+            </button>
+          </div>
+          {showAddBank && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input value={bankForm.bankName} onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })} placeholder="Bank Name" className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                <input value={bankForm.accountName} onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })} placeholder="Account Name" className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                <input value={bankForm.accountNumber} onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })} placeholder="Account Number" className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10" />
+                <select value={bankForm.accountType} onChange={(e) => setBankForm({ ...bankForm, accountType: e.target.value })} className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10">
+                  <option value="checking">Checking</option>
+                  <option value="savings">Savings</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={addBankAccount} disabled={bankLoading || !bankForm.bankName || !bankForm.accountName || !bankForm.accountNumber}
+                  className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:bg-slate-300">
+                  {bankLoading ? "Linking..." : "Link Account"}
+                </button>
+                <button onClick={() => setShowAddBank(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50">Cancel</button>
+              </div>
+            </div>
+          )}
+          {bankAccounts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Banknote className="mb-2 h-8 w-8 text-slate-300" />
+              <p className="text-sm font-medium text-slate-500">No bank accounts linked</p>
+              <p className="text-xs text-slate-400">Link your bank account to pay directly from it.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {bankAccounts.map((acct) => (
+                <div key={acct.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/50 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Building2 className="h-4 w-4" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{acct.bankName}</p>
+                      <p className="text-xs text-slate-500">{acct.accountName} · {acct.accountNumber}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-800">RWF {new Intl.NumberFormat("en-US").format(acct.balance)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
         <motion.div variants={itemVariants} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">

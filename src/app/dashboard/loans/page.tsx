@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   Landmark, CheckCircle2, AlertCircle, Calendar,
   Percent, Clock, ArrowRight, ShieldCheck, Download,
-  Wallet, Smartphone, Building2, X, CreditCard,
+  Wallet, Smartphone, Building2, X, CreditCard, Banknote,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -46,7 +46,7 @@ interface DashboardData {
     amount: number; remainingBalance: number; monthlyInstallment: number
     interest: number; disbursementDate: string; dueDate: string
     paidMonths: number; totalMonths: number; status: string
-    paymentSchedule: Array<{ month: string; amount: number; paid: boolean; dueDate: string }>
+    paymentSchedule: Array<{ id?: string | number; month: string; amount: number; paid: boolean; dueDate: string }>
   } | null
   availableLoanLimit: number
 }
@@ -62,9 +62,25 @@ export default function LoansPage() {
 
   const [payModal, setPayModal] = useState<{ open: boolean; monthIndex: number; amount: number }>({ open: false, monthIndex: -1, amount: 0 })
   const [payAmount, setPayAmount] = useState(0)
-  const [payMethod, setPayMethod] = useState<"bank" | "mobile" | "cash">("mobile")
+  const [payMethod, setPayMethod] = useState<"bank_account" | "mobile_money" | "bank_transfer" | "cash">("mobile_money")
   const [payLoading, setPayLoading] = useState(false)
   const [paySuccess, setPaySuccess] = useState("")
+  const [payError, setPayError] = useState("")
+  const [bankAccounts, setBankAccounts] = useState<Array<{ id: number; bankName: string; accountName: string; accountNumber: string; balance: number }>>([])
+  const [selectedBankId, setSelectedBankId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (payModal.open) {
+      setPayError("")
+      setPaySuccess("")
+      fetch("/api/bank-accounts")
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setBankAccounts(data)
+        })
+        .catch(() => {})
+    }
+  }, [payModal.open])
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -144,6 +160,7 @@ export default function LoansPage() {
                         const firstMissed = loan.paymentSchedule.findIndex((e) => !e.paid && e.month !== loan.paymentSchedule[loan.paidMonths]?.month)
                         if (firstMissed >= 0) {
                           setPayAmount(loan.paymentSchedule[firstMissed].amount)
+                          setSelectedBankId(null)
                           setPayModal({ open: true, monthIndex: firstMissed, amount: loan.paymentSchedule[firstMissed].amount })
                         }
                       }}
@@ -195,7 +212,7 @@ export default function LoansPage() {
                                     {i === loan.paidMonths ? <Clock className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
                                     {i === loan.paidMonths ? "Upcoming" : "Missed"}
                                   </span>
-                                  <button onClick={() => { setPayAmount(entry.amount); setPayModal({ open: true, monthIndex: i, amount: entry.amount }) }}
+                                  <button onClick={() => { setPayAmount(entry.amount); setSelectedBankId(null); setPayModal({ open: true, monthIndex: i, amount: entry.amount }) }}
                                     className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-primary/90">
                                     Pay Now
                                   </button>
@@ -338,7 +355,7 @@ export default function LoansPage() {
                     <CheckCircle2 className="h-8 w-8 text-emerald-500" />
                   </div>
                   <p className="mt-4 font-heading text-xl font-bold text-slate-900">Payment Successful!</p>
-                  <p className="mt-1 text-sm text-slate-500">RWF {new Intl.NumberFormat("en-US").format(payAmount)} paid via {payMethod === "bank" ? "Bank Transfer" : payMethod === "mobile" ? "Mobile Money" : "Cash Deposit"}</p>
+                  <p className="mt-1 text-sm text-slate-500">RWF {new Intl.NumberFormat("en-US").format(payAmount)} paid via {payMethod === "bank_account" ? "Bank Account" : payMethod === "mobile_money" ? "Mobile Money" : payMethod === "bank_transfer" ? "Bank Transfer" : "Cash Deposit"}</p>
                   <button onClick={() => { setPayModal({ ...payModal, open: false }); setPaySuccess("") }}
                     className="mt-6 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90">Done</button>
                 </div>
@@ -353,13 +370,14 @@ export default function LoansPage() {
 
                   <div>
                     <label className="text-xs font-medium text-slate-500">Payment Method</label>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
+                    <div className="mt-2 grid grid-cols-2 gap-2">
                       {[
-                        { value: "mobile" as const, icon: Smartphone, label: "Mobile Money" },
-                        { value: "bank" as const, icon: Building2, label: "Bank Transfer" },
+                        { value: "bank_account" as const, icon: Banknote, label: "Bank Account" },
+                        { value: "mobile_money" as const, icon: Smartphone, label: "Mobile Money" },
+                        { value: "bank_transfer" as const, icon: Building2, label: "Bank Transfer" },
                         { value: "cash" as const, icon: Wallet, label: "Cash Deposit" },
                       ].map((method) => (
-                        <button key={method.value} onClick={() => setPayMethod(method.value)}
+                        <button key={method.value} onClick={() => { setPayMethod(method.value); setSelectedBankId(null); setPayError("") }}
                           className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-3 transition",
                             payMethod === method.value
                               ? "border-primary/30 bg-primary/5 text-primary"
@@ -371,13 +389,40 @@ export default function LoansPage() {
                     </div>
                   </div>
 
-                  {payMethod === "mobile" && (
+                  {payMethod === "bank_account" && (
+                    <div>
+                      <label className="text-xs font-medium text-slate-500">Select Bank Account</label>
+                      {bankAccounts.length === 0 ? (
+                        <div className="mt-2 rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-700">
+                          No linked bank accounts. <a href="/dashboard/settings" className="font-semibold underline">Link one first</a>.
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {bankAccounts.map((acct) => (
+                            <button key={acct.id} onClick={() => { setSelectedBankId(acct.id); setPayError("") }}
+                              className={cn("flex w-full items-center justify-between rounded-xl border p-3 text-left transition",
+                                selectedBankId === acct.id
+                                  ? "border-primary/30 bg-primary/5"
+                                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50")}>
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{acct.bankName}</p>
+                                <p className="text-xs text-slate-500">{acct.accountName} · {acct.accountNumber}</p>
+                              </div>
+                              <p className="text-sm font-semibold text-slate-800">RWF {new Intl.NumberFormat("en-US").format(acct.balance)}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {payMethod === "mobile_money" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700">
                       <p className="font-semibold">Mobile Money Instructions</p>
                       <p className="mt-1 text-blue-600">Dial *182*8*1# on your phone and enter the IAS account number <strong>112233</strong>. Reference: <strong>LOAN-{payModal.monthIndex + 1}</strong></p>
                     </div>
                   )}
-                  {payMethod === "bank" && (
+                  {payMethod === "bank_transfer" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700">
                       <p className="font-semibold">Bank Transfer Details</p>
                       <p className="mt-1 text-blue-600">Bank: Bank of Kigali · Acc: <strong>4000-123456-789</strong> · Name: IAS Cooperative · Reference: <strong>LOAN-{payModal.monthIndex + 1}</strong></p>
@@ -390,17 +435,37 @@ export default function LoansPage() {
                     </div>
                   )}
 
-                  <button onClick={() => {
-                    setPayLoading(true)
-                    setTimeout(() => {
-                      setPayLoading(false)
+                  {payError && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-xs text-red-600">{payError}</div>
+                  )}
+
+                  <button onClick={async () => {
+                    if (payMethod === "bank_account" && !selectedBankId) { setPayError("Please select a bank account"); return }
+                    if (payAmount <= 0) { setPayError("Please enter a valid amount"); return }
+                    setPayLoading(true); setPayError("")
+                    try {
+                      const res = await fetch("/api/payments/initiate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          amount: payAmount,
+                          sourceType: payMethod,
+                          sourceId: payMethod === "bank_account" ? selectedBankId : undefined,
+                          destinationType: "loan",
+                          destinationId: loan?.paymentSchedule[payModal.monthIndex]?.id,
+                          reference: `LOAN-${payModal.monthIndex + 1}`,
+                        }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) { setPayError(data.error || "Payment failed"); setPayLoading(false); return }
                       setPaySuccess(`Paid RWF ${new Intl.NumberFormat("en-US").format(payAmount)} for ${loan?.paymentSchedule[payModal.monthIndex]?.month}`)
                       if (loan) {
                         const updated = [...loan.paymentSchedule]
                         updated[payModal.monthIndex] = { ...updated[payModal.monthIndex], paid: true }
-                        setData({ ...data, loan: { ...loan, paymentSchedule: updated, paidMonths: updated.filter((e) => e.paid).length, remainingBalance: Math.max(0, loan.remainingBalance - payAmount) } })
+                        setData({ ...data, loan: { ...loan, paymentSchedule: updated, paidMonths: updated.filter((e) => e.paid).length, remainingBalance: data.remainingBalance ?? Math.max(0, loan.remainingBalance - payAmount) } })
                       }
-                    }, 1500)
+                    } catch { setPayError("Network error. Please try again.") }
+                    finally { setPayLoading(false) }
                   }} disabled={payLoading || payAmount <= 0}
                     className={cn("flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition",
                       payLoading || payAmount <= 0 ? "bg-slate-300 cursor-not-allowed" : "bg-primary hover:bg-primary/90")}>

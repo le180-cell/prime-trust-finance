@@ -64,7 +64,7 @@ export default function ReceivablesPage() {
   async function handlePay(id: number) {
     setPayingId(id)
     try {
-      const res = await fetch("/api/dashboard/receivables", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+      const res = await fetch("/api/payments/initiate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: receivables.find(r => r.id === id)?.amount || 0, sourceType: "mobile_money", destinationType: "receivable", destinationId: id, reference: `REC-${id}` }) })
       if (res.ok) setReceivables((prev) => prev.map((r) => r.id === id ? { ...r, status: "paid" } : r))
     } catch {}
     finally { setPayingId(null) }

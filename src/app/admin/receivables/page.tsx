@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Receipt, Clock, Calendar, AlertTriangle, CheckCircle, DollarSign,
@@ -20,20 +20,20 @@ interface Receivable {
   status: "paid" | "overdue" | "pending" | "due_today"
 }
 
-const mockReceivables: Receivable[] = [
-  { id: 1, memberName: "Jean-Pierre Habimana", memberInitials: "JH", reference: "INV-2026-001", type: "Loan", amountDue: 250000, dueDate: "2026-07-01", status: "due_today" },
-  { id: 2, memberName: "Alice Mukamana", memberInitials: "AM", reference: "INV-2026-002", type: "Savings", amountDue: 50000, dueDate: "2026-06-28", status: "overdue" },
-  { id: 3, memberName: "David Kagame", memberInitials: "DK", reference: "INV-2026-003", type: "Interest", amountDue: 120000, dueDate: "2026-07-05", status: "pending" },
-  { id: 4, memberName: "Grace Uwimana", memberInitials: "GU", reference: "INV-2026-004", type: "Penalty", amountDue: 15000, dueDate: "2026-06-25", status: "overdue" },
-  { id: 5, memberName: "Patrick Niyonzima", memberInitials: "PN", reference: "INV-2026-005", type: "Registration", amountDue: 30000, dueDate: "2026-07-10", status: "pending" },
-  { id: 6, memberName: "Beatrice Imanishimwe", memberInitials: "BI", reference: "INV-2026-006", type: "Loan", amountDue: 450000, dueDate: "2026-07-03", status: "pending" },
-  { id: 7, memberName: "Samuel Nkurunziza", memberInitials: "SN", reference: "INV-2026-007", type: "Loan", amountDue: 180000, dueDate: "2026-06-20", status: "paid" },
-  { id: 8, memberName: "Chantal Uwase", memberInitials: "CU", reference: "INV-2026-008", type: "Savings", amountDue: 75000, dueDate: "2026-07-02", status: "due_today" },
-  { id: 9, memberName: "Olivier Mugisha", memberInitials: "OM", reference: "INV-2026-009", type: "Interest", amountDue: 90000, dueDate: "2026-06-15", status: "paid" },
-  { id: 10, memberName: "Diane Nyiraneza", memberInitials: "DN", reference: "INV-2026-010", type: "Penalty", amountDue: 25000, dueDate: "2026-07-08", status: "pending" },
-  { id: 11, memberName: "Emmanuel Habiyaremye", memberInitials: "EH", reference: "INV-2026-011", type: "Registration", amountDue: 30000, dueDate: "2026-06-22", status: "overdue" },
-  { id: 12, memberName: "Francoise Uwimana", memberInitials: "FU", reference: "INV-2026-012", type: "Loan", amountDue: 320000, dueDate: "2026-07-12", status: "pending" },
-]
+interface ApiReceivable {
+  id: number
+  memberId: number
+  type: string
+  amount: number
+  dueDate: string
+  status: string
+  description: string | null
+  reference: string | null
+  paidAt: string | null
+  createdAt: string
+  firstName: string | null
+  lastName: string | null
+}
 
 const typeColors: Record<string, string> = {
   Loan: "bg-blue-50 text-blue-700 border-blue-200",
@@ -102,11 +102,44 @@ function SkeletonTable() {
   )
 }
 
+function toMemberName(r: ApiReceivable): string {
+  return [r.firstName, r.lastName].filter(Boolean).join(" ") || `Member #${r.memberId}`
+}
+
+function toInitials(name: string): string {
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+}
+
+function determineStatus(dueDate: string, currentStatus: string): Receivable["status"] {
+  if (currentStatus === "paid") return "paid"
+  const today = new Date()
+  const todayStr = today.toISOString().split("T")[0]
+  const due = new Date(dueDate)
+  const diff = Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
+  if (diff > 0) return "overdue"
+  if (dueDate === todayStr) return "due_today"
+  return "pending"
+}
+
+function mapReceivable(r: ApiReceivable): Receivable {
+  const name = toMemberName(r)
+  return {
+    id: r.id,
+    memberName: name,
+    memberInitials: toInitials(name),
+    reference: r.reference || `INV-${String(r.id).padStart(4, "0")}`,
+    type: r.type as Receivable["type"],
+    amountDue: r.amount,
+    dueDate: r.dueDate,
+    status: determineStatus(r.dueDate, r.status),
+  }
+}
+
 export default function AdminReceivablesPage() {
-  const [receivables, setReceivables] = useState<Receivable[]>(mockReceivables)
+  const [receivables, setReceivables] = useState<Receivable[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [search, setSearch] = useState("")
-  useEffect(() => { setLoading(false) }, [])
   const [typeFilter, setTypeFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -117,6 +150,23 @@ export default function AdminReceivablesPage() {
   const weekFromNow = new Date(today)
   weekFromNow.setDate(weekFromNow.getDate() + 7)
   const weekStr = weekFromNow.toISOString().split("T")[0]
+
+  const fetchReceivables = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/admin/receivables")
+      if (!res.ok) throw new Error("Failed to fetch receivables")
+      const data: ApiReceivable[] = await res.json()
+      setReceivables(data.map(mapReceivable))
+    } catch {
+      setError("Could not load receivables. The server may be unavailable.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchReceivables() }, [fetchReceivables])
 
   const stats = useMemo(() => {
     const total = receivables.reduce((s, r) => s + r.amountDue, 0)
@@ -148,13 +198,27 @@ export default function AdminReceivablesPage() {
     return diff > 0 ? diff : 0
   }
 
-  function handleMarkPaid(r: Receivable) {
-    setReceivables((prev) => prev.map((item) => item.id === r.id ? { ...item, status: "paid" } : item))
-    toast.success("Payment recorded — receivable marked as paid. Finance, reports, and member dashboard updated.")
+  async function handleMarkPaid(r: Receivable) {
+    try {
+      const res = await fetch("/api/admin/receivables", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: r.id }),
+      })
+      if (!res.ok) throw new Error("Failed to mark as paid")
+      toast.success("Receivable marked as paid.")
+      fetchReceivables()
+    } catch {
+      toast.error("Failed to update receivable.")
+    }
   }
 
   function toggleExpand(id: number) {
     setExpandedId((prev) => prev === id ? null : id)
+  }
+
+  function handleRetry() {
+    fetchReceivables()
   }
 
   const summaryCards = [
@@ -231,6 +295,16 @@ export default function AdminReceivablesPage() {
         </div>
       </motion.div>
 
+      {error && (
+        <motion.div variants={itemVariants} className="mb-4 rounded-xl bg-red-50 border border-red-100 px-5 py-4 text-sm text-red-600 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5" />
+          <span>{error}</span>
+          <button onClick={handleRetry} className="ml-auto rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-200 transition-all">
+            Retry
+          </button>
+        </motion.div>
+      )}
+
       {loading ? (
         <SkeletonTable />
       ) : filtered.length === 0 ? (
@@ -295,7 +369,7 @@ export default function AdminReceivablesPage() {
                           {r.status !== "paid" && daysOverdue > 0 ? (
                             <span className="font-medium text-red-600">{daysOverdue}d</span>
                           ) : (
-                            <span className="text-gray-400">—</span>
+                            <span className="text-gray-400">&mdash;</span>
                           )}
                         </td>
                         <td className="px-4 py-3.5">

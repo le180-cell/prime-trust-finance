@@ -55,7 +55,7 @@ export async function GET() {
     disbursementDate: loan.disbursedAt, dueDate: "",
     paidMonths: loan.paidMonths, totalMonths: loan.tenure, status: loan.status,
     paymentSchedule: repayments.map((r: Record<string, unknown>) => ({
-      month: `${["January","February","March","April","May","June","July","August","September","October","November","December"][(r.month as number) - 1]} ${r.year}`,
+      id: r.id, month: `${["January","February","March","April","May","June","July","August","September","October","November","December"][(r.month as number) - 1]} ${r.year}`,
       amount: r.amount, paid: r.paid, dueDate: r.dueDate,
     })),
   } : null

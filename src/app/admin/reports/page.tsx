@@ -1,13 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   FileText, Clock, Calendar, BarChart3, TrendingUp, DollarSign,
   HandCoins, ArrowUpCircle, Users, Download, X, ChevronDown,
-  FileSpreadsheet, FileType,
+  FileSpreadsheet, FileType, AlertCircle, RefreshCw,
 } from "lucide-react"
 import { formatDate, cn } from "@/lib/utils"
+import toast from "react-hot-toast"
+
+interface Report {
+  id: number
+  name: string
+  type: string
+  format: string
+  fromDate: string | null
+  toDate: string | null
+  generatedAt: string
+  status: string
+  filename: string | null
+}
 
 const reportTypes = [
   { id: "daily", label: "Daily Reports", icon: Clock, desc: "Day-to-day operational summaries and metrics" },
@@ -20,25 +33,6 @@ const reportTypes = [
   { id: "members", label: "Member Reports", icon: Users, desc: "Member demographics and activity reports" },
 ]
 
-const mockRecentReports = [
-  { id: 1, name: "Daily Summary - Jul 1", type: "Daily", generated: "2026-07-01T08:00:00", status: "Completed" },
-  { id: 2, name: "Weekly Report - W26", type: "Weekly", generated: "2026-06-30T12:00:00", status: "Completed" },
-  { id: 3, name: "Monthly Report - June", type: "Monthly", generated: "2026-06-30T23:00:00", status: "Completed" },
-  { id: 4, name: "Q2 Financial Statement", type: "Financial", generated: "2026-06-30T23:00:00", status: "Processing" },
-  { id: 5, name: "Loan Performance H1", type: "Loan Reports", generated: "2026-06-28T10:00:00", status: "Completed" },
-]
-
-const lastGeneratedMap: Record<string, string> = {
-  daily: "2026-07-01T08:00:00",
-  weekly: "2026-06-30T12:00:00",
-  monthly: "2026-06-30T23:00:00",
-  annual: "2026-01-01T00:00:00",
-  financial: "2026-06-30T23:00:00",
-  loans: "2026-06-28T10:00:00",
-  contributions: "2026-06-25T14:00:00",
-  members: "2026-06-20T09:00:00",
-}
-
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
@@ -50,7 +44,9 @@ const itemVariants = {
 }
 
 export default function ReportsPage() {
-  const [loading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [recentReports, setRecentReports] = useState<Report[]>([])
   const [showModal, setShowModal] = useState(false)
   const [genType, setGenType] = useState("daily")
   const [genFormat, setGenFormat] = useState("pdf")
@@ -58,11 +54,40 @@ export default function ReportsPage() {
   const [genTo, setGenTo] = useState("")
   const [generating, setGenerating] = useState(false)
 
+  const fetchReports = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/admin/reports")
+      if (!res.ok) throw new Error("Failed to fetch reports")
+      const data = await res.json()
+      setRecentReports(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load reports")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchReports() }, [])
+
   const handleGenerate = async () => {
     setGenerating(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setGenerating(false)
-    setShowModal(false)
+    try {
+      const res = await fetch("/api/admin/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: genType, format: genFormat, fromDate: genFrom || undefined, toDate: genTo || undefined }),
+      })
+      if (!res.ok) throw new Error("Failed to generate report")
+      toast.success("Report generated successfully")
+      setShowModal(false)
+      fetchReports()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate report")
+    } finally {
+      setGenerating(false)
+    }
   }
 
   if (loading) {
@@ -87,6 +112,19 @@ export default function ReportsPage() {
     )
   }
 
+  if (error) {
+    return (
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-14 w-14 text-red-300 mb-4" />
+        <p className="text-lg text-gray-600 mb-2">Failed to load reports</p>
+        <p className="text-sm text-gray-400 mb-6">{error}</p>
+        <button onClick={fetchReports} className="flex items-center gap-2 rounded-xl bg-[#0B3C5D] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#0B3C5D]/80">
+          <RefreshCw className="h-4 w-4" /> Retry
+        </button>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible">
       <motion.div variants={itemVariants} className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -106,7 +144,7 @@ export default function ReportsPage() {
       <motion.div variants={itemVariants} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {reportTypes.map((rt) => {
           const Icon = rt.icon
-          const lastGen = lastGeneratedMap[rt.id]
+          const lastGen = recentReports.find((r) => r.type === rt.id)?.generatedAt
           return (
             <motion.div
               key={rt.id}
@@ -161,7 +199,7 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {mockRecentReports.map((r, i) => (
+              {recentReports.map((r, i) => (
                 <motion.tr
                   key={r.id}
                   variants={itemVariants}
@@ -171,28 +209,26 @@ export default function ReportsPage() {
                   className="border-b border-gray-50 transition-all hover:bg-gray-50/50"
                 >
                   <td className="px-6 py-4 font-medium text-gray-800">{r.name}</td>
-                  <td className="px-6 py-4 text-gray-600">{r.type}</td>
-                  <td className="px-6 py-4 text-gray-400">{formatDate(r.generated)}</td>
+                  <td className="px-6 py-4 text-gray-600">{r.type.charAt(0).toUpperCase() + r.type.slice(1)}</td>
+                  <td className="px-6 py-4 text-gray-400">{formatDate(r.generatedAt)}</td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      r.status === "Completed" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+                      r.status === "completed" || r.status === "Completed" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
                     )}>
-                      {r.status}
+                      {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {["PDF", "CSV"].map((fmt) => (
-                        <button key={fmt} className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-all hover:bg-gray-50">
-                          {fmt}
-                        </button>
-                      ))}
+                      <button className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-all hover:bg-gray-50">
+                        {r.format?.toUpperCase() || "PDF"}
+                      </button>
                     </div>
                   </td>
                 </motion.tr>
               ))}
-              {mockRecentReports.length === 0 && (
+              {recentReports.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">No reports generated yet.</td></tr>
               )}
             </tbody>

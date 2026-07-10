@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   CreditCard, DollarSign, Clock, X, AlertTriangle,
@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils"
 
 interface Payment {
   id: number
+  memberId: number
   receiptNo: string
   memberName: string
   memberInitials: string
@@ -24,23 +25,25 @@ interface Payment {
   remarks?: string
 }
 
-const mockMembers = [
-  "Jean-Pierre Habimana", "Alice Mukamana", "David Kagame",
-  "Grace Uwimana", "Patrick Niyonzima", "Beatrice Imanishimwe",
-  "Samuel Nkurunziza", "Chantal Uwase", "Olivier Mugisha",
-  "Diane Nyiraneza", "Emmanuel Habiyaremye", "Francoise Uwimana",
-]
+interface ApiPayment {
+  id: number
+  memberId: number
+  type: string
+  amount: number
+  description: string
+  reference: string | null
+  method: string
+  status: string
+  paidAt: string
+  firstName: string | null
+  lastName: string | null
+}
 
-const initialPayments: Payment[] = [
-  { id: 1, receiptNo: "RCP-2026-001", memberName: "Jean-Pierre Habimana", memberInitials: "JH", type: "Loan Payment", amount: 150000, method: "Bank", reference: "TRX-001", date: "2026-07-04", status: "completed", remarks: "Monthly installment" },
-  { id: 2, receiptNo: "RCP-2026-002", memberName: "Alice Mukamana", memberInitials: "AM", type: "Savings Deposit", amount: 50000, method: "Mobile Money", reference: "MM-2026-002", date: "2026-07-03", status: "completed" },
-  { id: 3, receiptNo: "RCP-2026-003", memberName: "David Kagame", memberInitials: "DK", type: "Penalty", amount: 15000, method: "Cash", reference: "CSH-003", date: "2026-07-02", status: "pending" },
-  { id: 4, receiptNo: "RCP-2026-004", memberName: "Grace Uwimana", memberInitials: "GU", type: "Interest", amount: 120000, method: "Transfer", reference: "TRF-004", date: "2026-07-01", status: "failed" },
-  { id: 5, receiptNo: "RCP-2026-005", memberName: "Patrick Niyonzima", memberInitials: "PN", type: "Registration Fee", amount: 30000, method: "Card", reference: "CRD-005", date: "2026-07-04", status: "completed" },
-  { id: 6, receiptNo: "RCP-2026-006", memberName: "Beatrice Imanishimwe", memberInitials: "BI", type: "Loan Payment", amount: 200000, method: "Bank", reference: "TRX-006", date: "2026-06-30", status: "completed" },
-  { id: 7, receiptNo: "RCP-2026-007", memberName: "Samuel Nkurunziza", memberInitials: "SN", type: "Savings Deposit", amount: 75000, method: "Mobile Money", reference: "MM-2026-007", date: "2026-07-04", status: "pending" },
-  { id: 8, receiptNo: "RCP-2026-008", memberName: "Chantal Uwase", memberInitials: "CU", type: "Penalty", amount: 25000, method: "Cash", reference: "CSH-008", date: "2026-06-28", status: "completed" },
-]
+interface MemberOption {
+  id: number
+  firstName: string
+  lastName: string
+}
 
 const paymentTypeColors: Record<string, string> = {
   "Loan Payment": "bg-blue-50 text-blue-700 border-blue-200",
@@ -97,21 +100,82 @@ function SkeletonTable() {
   )
 }
 
+function toMemberName(p: ApiPayment): string {
+  return [p.firstName, p.lastName].filter(Boolean).join(" ") || `Member #${p.memberId}`
+}
+
+function toInitials(name: string): string {
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+}
+
+function mapPayment(p: ApiPayment): Payment {
+  const name = toMemberName(p)
+  return {
+    id: p.id,
+    memberId: p.memberId,
+    receiptNo: `RCP-${p.reference || `PAY-${String(p.id).padStart(4, "0")}`}`,
+    memberName: name,
+    memberInitials: toInitials(name),
+    type: p.type as Payment["type"],
+    amount: p.amount,
+    method: (p.method as Payment["method"]) || "Cash",
+    reference: p.reference || "",
+    date: p.paidAt?.split("T")[0] || "",
+    status: p.status as Payment["status"],
+    remarks: p.description || undefined,
+  }
+}
+
 export default function AdminPaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>(initialPayments)
-  const [loading] = useState(false)
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [search, setSearch] = useState("")
   const [recordModalOpen, setRecordModalOpen] = useState(false)
   const [receiptModal, setReceiptModal] = useState<Payment | null>(null)
+  const [members, setMembers] = useState<MemberOption[]>([])
 
-  const [formMember, setFormMember] = useState(mockMembers[0])
+  const [formMemberId, setFormMemberId] = useState<number | "">("")
   const [formAmount, setFormAmount] = useState("")
   const [formType, setFormType] = useState<Payment["type"]>("Loan Payment")
   const [formReference, setFormReference] = useState("")
   const [formMethod, setFormMethod] = useState<Payment["method"]>("Cash")
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0])
   const [formRemarks, setFormRemarks] = useState("")
+
+  const fetchPayments = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/admin/payments")
+      if (!res.ok) throw new Error("Failed to fetch payments")
+      const data: ApiPayment[] = await res.json()
+      setPayments(data.map(mapPayment))
+    } catch {
+      setError("Could not load payments. The server may be unavailable.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchMembers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/members")
+      if (!res.ok) throw new Error("Failed to fetch members")
+      const data = await res.json()
+      const list: MemberOption[] = (data.members || []).map((m: Record<string, unknown>) => ({
+        id: m.id as number,
+        firstName: (m.firstName as string) || "",
+        lastName: (m.lastName as string) || "",
+      })).filter((m: MemberOption) => m.firstName || m.lastName)
+      setMembers(list)
+      if (list.length > 0 && formMemberId === "") setFormMemberId(list[0].id)
+    } catch {
+      // silent — members dropdown will just be empty
+    }
+  }, [formMemberId])
+
+  useEffect(() => { fetchPayments(); fetchMembers() }, [fetchPayments, fetchMembers])
 
   const stats = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0]
@@ -132,39 +196,57 @@ export default function AdminPaymentsPage() {
     )
   }, [payments, search])
 
-  function handleRecordPayment() {
+  async function handleRecordPayment() {
     const amount = parseInt(formAmount)
     if (!amount || amount <= 0) {
       toast.error("Please enter a valid amount.")
       return
     }
-
-    const newPayment: Payment = {
-      id: Date.now(),
-      receiptNo: `RCP-2026-${String(payments.length + 1).padStart(3, "0")}`,
-      memberName: formMember,
-      memberInitials: formMember.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
-      type: formType,
-      amount,
-      method: formMethod,
-      reference: formReference || `REF-${Date.now()}`,
-      date: formDate,
-      status: "completed",
-      remarks: formRemarks,
+    if (!formMemberId) {
+      toast.error("Please select a member.")
+      return
     }
-    setPayments((prev) => [newPayment, ...prev])
-    setRecordModalOpen(false)
-    setFormAmount("")
-    setFormReference("")
-    setFormRemarks("")
-    setFormDate(new Date().toISOString().split("T")[0])
-    toast.success(`Payment of ${formatCurrency(amount)} recorded. Receipt generated. Loan/savings/finance/receivables/reports updated. Member and admin notified.`)
+
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: formMemberId,
+          type: formType,
+          amount,
+          description: formRemarks,
+          reference: formReference || null,
+          method: formMethod,
+          status: "completed",
+          paidAt: formDate,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to record payment")
+      }
+
+      setRecordModalOpen(false)
+      setFormAmount("")
+      setFormReference("")
+      setFormRemarks("")
+      setFormDate(new Date().toISOString().split("T")[0])
+      toast.success(`Payment of ${formatCurrency(amount)} recorded. Receipt generated.`)
+      fetchPayments()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to record payment")
+    }
   }
 
   function handleRetry() {
-    setError("")
-    toast.success("Reconnected successfully.")
+    fetchPayments()
   }
+
+  const selectedMemberName = useMemo(() => {
+    const m = members.find((m) => m.id === formMemberId)
+    return m ? `${m.firstName} ${m.lastName}` : ""
+  }, [members, formMemberId])
 
   const summaryCards = [
     { label: "Payments Today", value: stats.paymentsToday, icon: Clock, color: "text-blue-600", bg: "bg-blue-50", suffix: " payments" },
@@ -377,10 +459,13 @@ export default function AdminPaymentsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1.5">Member</label>
                   <select
-                    value={formMember} onChange={(e) => setFormMember(e.target.value)}
+                    value={formMemberId} onChange={(e) => setFormMemberId(Number(e.target.value) || "")}
                     className="w-full rounded-xl border border-gray-200 bg-white/80 px-4 py-2.5 text-sm outline-none focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10"
                   >
-                    {mockMembers.map((m) => <option key={m} value={m}>{m}</option>)}
+                    {members.length === 0 && <option value="">No members available</option>}
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                    ))}
                   </select>
                 </div>
 

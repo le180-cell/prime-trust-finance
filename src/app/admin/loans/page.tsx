@@ -1,17 +1,18 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   CheckCircle, XCircle, HelpCircle, Search,
   ChevronDown, ChevronUp, DollarSign, Calendar,
-  AlertCircle,
+  AlertCircle, RefreshCw,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import { formatCurrency, formatDate, cn } from "@/lib/utils"
 
 interface Loan {
   id: number
+  memberId: number
   memberName: string
   memberInitials: string
   amount: number
@@ -23,20 +24,9 @@ interface Loan {
   duration: number
   collateral: string
   notes: string
+  productName: string
+  interestRate: number
 }
-
-const mockLoans: Loan[] = [
-  { id: 1, memberName: "Jean-Pierre Habimana", memberInitials: "JH", amount: 1500000, purpose: "Business Expansion", riskScore: "low", monthlyInstallment: 150000, status: "pending", dateRequested: "2026-05-28", duration: 12, collateral: "Land title deed", notes: "Returning customer with good repayment history." },
-  { id: 2, memberName: "Alice Uwimana", memberInitials: "AU", amount: 800000, purpose: "Education", riskScore: "low", monthlyInstallment: 80000, status: "pending", dateRequested: "2026-06-01", duration: 12, collateral: "None (group guarantee)", notes: "Member of Urumuri cooperative." },
-  { id: 3, memberName: "David Kagame", memberInitials: "DK", amount: 3000000, purpose: "Agriculture Equipment", riskScore: "medium", monthlyInstallment: 300000, status: "pending", dateRequested: "2026-05-25", duration: 18, collateral: "Farm equipment", notes: "High potential but seasonal income." },
-  { id: 4, memberName: "Grace Mukamana", memberInitials: "GM", amount: 500000, purpose: "Emergency", riskScore: "low", monthlyInstallment: 50000, status: "approved", dateRequested: "2026-05-20", duration: 12, collateral: "Savings guarantee", notes: "Medical emergency loan." },
-  { id: 5, memberName: "Patrick Niyonzima", memberInitials: "PN", amount: 2000000, purpose: "Home Renovation", riskScore: "medium", monthlyInstallment: 200000, status: "approved", dateRequested: "2026-05-15", duration: 24, collateral: "House title", notes: "Property renovation for rental income." },
-  { id: 6, memberName: "Beatrice Imanishimwe", memberInitials: "BI", amount: 100000, purpose: "Petty Trade", riskScore: "high", monthlyInstallment: 12000, status: "rejected", dateRequested: "2026-05-10", duration: 6, collateral: "None", notes: "Insufficient credit history." },
-  { id: 7, memberName: "Samuel Nkurunziza", memberInitials: "SN", amount: 1200000, purpose: "Business Expansion", riskScore: "low", monthlyInstallment: 120000, status: "completed", dateRequested: "2025-11-10", duration: 12, collateral: "Vehicle", notes: "Fully repaid." },
-  { id: 8, memberName: "Chantal Uwase", memberInitials: "CU", amount: 600000, purpose: "Education", riskScore: "low", monthlyInstallment: 60000, status: "completed", dateRequested: "2025-08-15", duration: 12, collateral: "None", notes: "Completed with good standing." },
-  { id: 9, memberName: "Olivier Mugisha", memberInitials: "OM", amount: 2500000, purpose: "Agriculture Equipment", riskScore: "high", monthlyInstallment: 250000, status: "pending", dateRequested: "2026-06-03", duration: 18, collateral: "Land title", notes: "New farmer cooperative member." },
-  { id: 10, memberName: "Diane Nyiraneza", memberInitials: "DN", amount: 400000, purpose: "Emergency", riskScore: "medium", monthlyInstallment: 45000, status: "pending", dateRequested: "2026-06-05", duration: 9, collateral: "Group guarantee", notes: "Requires urgent disbursement." },
-]
 
 const riskColors: Record<string, string> = {
   low: "bg-green-50 text-green-700 border-green-200",
@@ -82,12 +72,64 @@ function SkeletonCard() {
   )
 }
 
+function computeRiskScore(amount: number): "low" | "medium" | "high" {
+  if (amount >= 2000000) return "high"
+  if (amount >= 1000000) return "medium"
+  return "low"
+}
+
 export default function AdminLoansPage() {
-  const [loans] = useState<Loan[]>(mockLoans)
-  const [loading] = useState(false)
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [filter, setFilter] = useState("All")
   const [search, setSearch] = useState("")
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const mounted = useRef(false)
+
+  const fetchLoans = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const res = await fetch("/api/admin/loans")
+      if (!res.ok) throw new Error("Failed to fetch")
+      const data = await res.json()
+      if (!mounted.current) return
+      const mapped: Loan[] = (data as Array<Record<string, unknown>>).map((item: any) => ({
+        id: item.id,
+        memberId: item.memberId,
+        memberName: `${item.firstName || ""} ${item.lastName || ""}`.trim(),
+        memberInitials: `${(item.firstName || "")[0] || ""}${(item.lastName || "")[0] || ""}`,
+        amount: item.amount,
+        purpose: item.purpose || item.productName || "N/A",
+        riskScore: computeRiskScore(item.amount),
+        monthlyInstallment: item.monthlyPayment || 0,
+        status: item.status,
+        dateRequested: item.appliedAt,
+        duration: item.tenure || 0,
+        collateral: item.productName || "Not specified",
+        notes: item.notes || "No notes",
+        productName: item.productName || "General",
+        interestRate: item.interestRate || 0,
+      }))
+      setLoans(mapped)
+    } catch {
+      if (mounted.current) setError(true)
+    } finally {
+      if (mounted.current) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    mounted.current = true
+    fetchLoans()
+    return () => { mounted.current = false }
+  }, [fetchLoans])
+
+  const handleRetry = useCallback(() => {
+    fetchLoans()
+  }, [fetchLoans])
 
   const counts = useMemo(() => ({
     all: loans.length,
@@ -107,16 +149,49 @@ export default function AdminLoansPage() {
     return result
   }, [loans, filter, search])
 
+  const updateLoanStatus = useCallback(async (loan: Loan, newStatus: string, message: string) => {
+    setActionLoading(loan.id)
+    try {
+      const res = await fetch("/api/admin/loans", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: loan.id, status: newStatus }),
+      })
+      if (!res.ok) throw new Error("Request failed")
+      setLoans((prev) =>
+        prev.map((l) => l.id === loan.id ? { ...l, status: newStatus as Loan["status"] } : l)
+      )
+      toast.success(message)
+    } catch {
+      toast.error(`Failed to ${newStatus} loan. Please try again.`)
+    } finally {
+      setActionLoading(null)
+    }
+  }, [])
+
   function handleApprove(loan: Loan) {
-    toast.success(`${loan.memberName}'s loan of ${formatCurrency(loan.amount)} approved`)
+    updateLoanStatus(loan, "approved", `${loan.memberName}'s loan of ${formatCurrency(loan.amount)} approved`)
   }
 
   function handleReject(loan: Loan) {
-    toast.error(`${loan.memberName}'s loan of ${formatCurrency(loan.amount)} rejected`)
+    updateLoanStatus(loan, "rejected", `${loan.memberName}'s loan of ${formatCurrency(loan.amount)} rejected`)
   }
 
-  function handleMoreInfo(loan: Loan) {
-    toast(`Requested more info for ${loan.memberName}'s loan`, { icon: "ℹ️" })
+  async function handleMoreInfo(loan: Loan) {
+    setActionLoading(loan.id)
+    try {
+      const res = await fetch("/api/admin/loans", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: loan.id, status: "pending", notes: "More information requested" }),
+      })
+      if (!res.ok) throw new Error("Request failed")
+      toast(`Requested more info for ${loan.memberName}'s loan`, { icon: "ℹ️" })
+    } catch {
+      toast.error("Failed to request more info")
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   function toggleExpand(id: number) {
@@ -130,6 +205,23 @@ export default function AdminLoansPage() {
     { key: "Rejected", label: "Rejected", count: counts.rejected },
     { key: "Completed", label: "Completed", count: counts.completed },
   ]
+
+  if (error) {
+    return (
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-14 w-14 text-red-300" />
+        <p className="mt-4 text-lg font-medium text-gray-600">Failed to load loan applications</p>
+        <p className="mt-1 text-sm text-gray-400">Something went wrong. Please try again.</p>
+        <button
+          onClick={handleRetry}
+          className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-light"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </button>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible">
@@ -261,8 +353,8 @@ export default function AdminLoansPage() {
                     >
                       <div className="border-t border-gray-100 px-5 py-4 space-y-3">
                         <div className="rounded-xl bg-gray-50/80 p-3">
-                          <p className="text-xs text-gray-500 font-medium">Collateral</p>
-                          <p className="text-sm text-gray-700 mt-0.5">{loan.collateral}</p>
+                          <p className="text-xs text-gray-500 font-medium">Product</p>
+                          <p className="text-sm text-gray-700 mt-0.5">{loan.productName}</p>
                         </div>
                         <div className="rounded-xl bg-gray-50/80 p-3">
                           <p className="text-xs text-gray-500 font-medium">Notes</p>
@@ -274,21 +366,24 @@ export default function AdminLoansPage() {
                             <>
                               <button
                                 onClick={() => handleApprove(loan)}
-                                className="flex items-center justify-center gap-1.5 flex-1 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary/90"
+                                disabled={actionLoading === loan.id}
+                                className="flex items-center justify-center gap-1.5 flex-1 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-50"
                               >
                                 <CheckCircle className="h-3.5 w-3.5" />
-                                Approve
+                                {actionLoading === loan.id ? "..." : "Approve"}
                               </button>
                               <button
                                 onClick={() => handleReject(loan)}
-                                className="flex items-center justify-center gap-1.5 flex-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-red-600"
+                                disabled={actionLoading === loan.id}
+                                className="flex items-center justify-center gap-1.5 flex-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-red-600 disabled:opacity-50"
                               >
                                 <XCircle className="h-3.5 w-3.5" />
-                                Reject
+                                {actionLoading === loan.id ? "..." : "Reject"}
                               </button>
                               <button
                                 onClick={() => handleMoreInfo(loan)}
-                                className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 transition-all hover:bg-amber-50"
+                                disabled={actionLoading === loan.id}
+                                className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 transition-all hover:bg-amber-50 disabled:opacity-50"
                                 title="Request more info"
                               >
                                 <HelpCircle className="h-3.5 w-3.5" />

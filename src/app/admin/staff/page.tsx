@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Users, Pencil, PauseCircle, Trash2, X, Plus,
-  Search, Shield, User,
+  Search, Shield, User, AlertCircle, RefreshCw,
 } from "lucide-react"
 import { cn, timeAgo } from "@/lib/utils"
+import toast from "react-hot-toast"
 
 interface Staff {
   id: number
@@ -21,14 +22,6 @@ interface Staff {
 
 const roles = ["Admin", "Manager", "Officer", "Viewer"]
 const departments = ["Operations", "Finance", "Loans", "Compliance", "IT", "HR"]
-
-const mockStaff: Staff[] = [
-  { id: 1, name: "Admin User", email: "admin@ias.com", role: "Admin", department: "Operations", status: "Active", lastActive: new Date().toISOString(), avatar: "A" },
-  { id: 2, name: "Jane Smith", email: "jane@ias.com", role: "Manager", department: "Finance", status: "Active", lastActive: new Date(Date.now() - 3600000).toISOString(), avatar: "J" },
-  { id: 3, name: "John Doe", email: "john@ias.com", role: "Officer", department: "Loans", status: "Active", lastActive: new Date(Date.now() - 7200000).toISOString(), avatar: "J" },
-  { id: 4, name: "Carol W.", email: "carol@ias.com", role: "Viewer", department: "Compliance", status: "Suspended", lastActive: new Date(Date.now() - 86400000 * 3).toISOString(), avatar: "C" },
-  { id: 5, name: "Bob K.", email: "bob@ias.com", role: "Officer", department: "IT", status: "Active", lastActive: new Date(Date.now() - 1800000).toISOString(), avatar: "B" },
-]
 
 const permissionRoles = [
   { role: "Admin", permissions: { read: true, write: true, approve: true, delete: true, manage: true } },
@@ -48,12 +41,40 @@ const itemVariants = {
 }
 
 export default function StaffPage() {
-  const [loading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [staff, setStaff] = useState<Staff[]>(mockStaff)
+  const [staff, setStaff] = useState<Staff[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null)
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "Officer", department: "Operations" })
+  const [saving, setSaving] = useState(false)
+
+  const fetchStaff = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/admin/staff")
+      if (!res.ok) throw new Error("Failed to fetch staff")
+      const data = await res.json()
+      setStaff(data.map((s: any) => ({
+        id: s.id,
+        name: s.firstName ? `${s.firstName} ${s.lastName || ""}`.trim() : s.email.split("@")[0],
+        email: s.email,
+        role: s.role.charAt(0).toUpperCase() + s.role.slice(1),
+        department: s.district || "N/A",
+        status: s.active !== undefined ? (s.active ? "Active" : "Suspended") : "Active",
+        lastActive: s.createdAt,
+        avatar: (s.firstName || s.email).charAt(0).toUpperCase(),
+      })))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load staff")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchStaff() }, [])
 
   const filtered = staff.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -74,30 +95,85 @@ export default function StaffPage() {
 
   const handleSave = async () => {
     if (!form.name || !form.email) return
-    if (editingStaff) {
-      setStaff((prev) => prev.map((s) => s.id === editingStaff.id ? { ...s, name: form.name, email: form.email, role: form.role, department: form.department } : s))
-    } else {
-      const newStaff: Staff = {
-        id: Date.now(),
-        name: form.name,
-        email: form.email,
-        role: form.role,
-        department: form.department,
-        status: "Active",
-        lastActive: new Date().toISOString(),
-        avatar: form.name.charAt(0).toUpperCase(),
+    setSaving(true)
+    try {
+      if (editingStaff) {
+        const res = await fetch("/api/admin/staff", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingStaff.id,
+            email: form.email,
+            name: form.name,
+            role: form.role.toLowerCase(),
+            department: form.department,
+            password: form.password || undefined,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || "Failed to update staff")
+        }
+        toast.success("Staff updated")
+      } else {
+        const res = await fetch("/api/admin/staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form.email,
+            name: form.name,
+            password: form.password,
+            role: form.role.toLowerCase(),
+            department: form.department,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || "Failed to add staff")
+        }
+        toast.success("Staff added")
       }
-      setStaff((prev) => [...prev, newStaff])
+      setShowModal(false)
+      fetchStaff()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Operation failed")
+    } finally {
+      setSaving(false)
     }
-    setShowModal(false)
   }
 
-  const toggleStatus = (id: number) => {
-    setStaff((prev) => prev.map((s) => s.id === id ? { ...s, status: s.status === "Active" ? "Suspended" : "Active" } : s))
+  const toggleStatus = async (id: number) => {
+    const s = staff.find((s) => s.id === id)
+    if (!s) return
+    const newActive = s.status === "Active" ? 0 : 1
+    try {
+      const res = await fetch("/api/admin/staff", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: newActive }),
+      })
+      if (!res.ok) throw new Error("Failed to toggle status")
+      toast.success(newActive ? "Staff activated" : "Staff suspended")
+      fetchStaff()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to toggle status")
+    }
   }
 
-  const handleDelete = (id: number) => {
-    setStaff((prev) => prev.filter((s) => s.id !== id))
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this staff member?")) return
+    try {
+      const res = await fetch("/api/admin/staff", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) throw new Error("Failed to delete staff")
+      toast.success("Staff deleted")
+      fetchStaff()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete staff")
+    }
   }
 
   if (loading) {
@@ -123,6 +199,19 @@ export default function StaffPage() {
           ))}
         </div>
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-14 w-14 text-red-300 mb-4" />
+        <p className="text-lg text-gray-600 mb-2">Failed to load staff</p>
+        <p className="text-sm text-gray-400 mb-6">{error}</p>
+        <button onClick={fetchStaff} className="flex items-center gap-2 rounded-xl bg-[#0B3C5D] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#0B3C5D]/80">
+          <RefreshCw className="h-4 w-4" /> Retry
+        </button>
+      </motion.div>
     )
   }
 
@@ -302,8 +391,8 @@ export default function StaffPage() {
                     </div>
                   </div>
                   <div className="flex gap-3 pt-2">
-                    <button onClick={handleSave} disabled={!form.name || !form.email} className="flex-1 rounded-xl bg-[#16A34A] py-3 font-semibold text-white transition-all hover:bg-[#16A34A]/80 disabled:opacity-60">
-                      {editingStaff ? "Save Changes" : "Add Staff"}
+                    <button onClick={handleSave} disabled={!form.name || !form.email || saving} className="flex-1 rounded-xl bg-[#16A34A] py-3 font-semibold text-white transition-all hover:bg-[#16A34A]/80 disabled:opacity-60">
+                      {saving ? "Saving..." : editingStaff ? "Save Changes" : "Add Staff"}
                     </button>
                     <button onClick={() => setShowModal(false)} className="rounded-xl border border-gray-200 px-6 py-3 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50">Cancel</button>
                   </div>

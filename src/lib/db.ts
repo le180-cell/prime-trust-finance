@@ -518,6 +518,17 @@ const createTableStatements = [
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (adminId) REFERENCES users(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    format TEXT NOT NULL DEFAULT 'pdf',
+    fromDate TEXT DEFAULT NULL,
+    toDate TEXT DEFAULT NULL,
+    generatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'completed',
+    filename TEXT DEFAULT NULL
+  )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token)`,
   `CREATE INDEX IF NOT EXISTS idx_reset_tokens_userId ON reset_tokens(userId)`,
@@ -546,6 +557,7 @@ async function migrateSchema(db: DbWrapper) {
     !(await columnExists(db, 'members', 'securityQuestion')) ? "ALTER TABLE members ADD COLUMN securityQuestion TEXT" : null,
     !(await columnExists(db, 'members', 'profilePhoto')) ? "ALTER TABLE members ADD COLUMN profilePhoto TEXT" : null,
     !(await columnExists(db, 'members', 'nationalIdDocument')) ? "ALTER TABLE members ADD COLUMN nationalIdDocument TEXT" : null,
+    !(await columnExists(db, 'users', 'active')) ? "ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1" : null,
   ].filter(Boolean) as string[]
   if (migrates.length > 0) await db.execMany(migrates)
   if (await columnExists(db, 'users', 'username')) {

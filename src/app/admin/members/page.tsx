@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   Search, UserPlus, Eye, Shield, Trash2, FileText, FileSpreadsheet,
   ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown,
-  Users,
+  Users, X, LoaderCircle,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import {
@@ -86,6 +86,9 @@ export default function AdminMembersPage() {
   const [rowSelection, setRowSelection] = useState({})
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addForm, setAddForm] = useState({ firstName: "", lastName: "", email: "", phone: "", district: "", occupation: "", password: "", confirmPassword: "" })
+  const [addLoading, setAddLoading] = useState(false)
 
   const fetchMembers = useCallback(() => {
     setLoading(true)
@@ -328,7 +331,7 @@ export default function AdminMembersPage() {
           </h1>
           <p className="mt-1 text-gray-500">Manage all registered users.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-secondary px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-secondary/90 shadow-sm hover:shadow-md">
+        <button onClick={() => setShowAddModal(true)} className="inline-flex items-center gap-2 rounded-xl bg-secondary px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-secondary/90 shadow-sm hover:shadow-md">
           <UserPlus className="h-4 w-4" />
           Add Member
         </button>
@@ -490,6 +493,105 @@ export default function AdminMembersPage() {
           Export Excel
         </button>
       </motion.div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setShowAddModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">Add Member</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Create a new member account</p>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                if (addForm.password.length < 6) { toast.error("Password must be at least 6 characters"); return }
+                if (addForm.password !== addForm.confirmPassword) { toast.error("Passwords do not match"); return }
+                setAddLoading(true)
+                try {
+                  const res = await fetch("/api/admin/members", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(addForm),
+                  })
+                  const data = await res.json()
+                  if (!res.ok) { toast.error(data.error || "Failed to create member"); return }
+                  toast.success("Member created successfully")
+                  setShowAddModal(false)
+                  setAddForm({ firstName: "", lastName: "", email: "", phone: "", district: "", occupation: "", password: "", confirmPassword: "" })
+                  fetchMembers()
+                } catch { toast.error("Network error") }
+                finally { setAddLoading(false) }
+              }} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name *</label>
+                    <input required value={addForm.firstName} onChange={(e) => setAddForm({ ...addForm, firstName: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="John" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
+                    <input value={addForm.lastName} onChange={(e) => setAddForm({ ...addForm, lastName: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="Doe" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
+                  <input required type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="member@example.com" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                    <input value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="+250 7XX XXX XXX" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">District</label>
+                    <input value={addForm.district} onChange={(e) => setAddForm({ ...addForm, district: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="Kigali" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Occupation</label>
+                  <input value={addForm.occupation} onChange={(e) => setAddForm({ ...addForm, occupation: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="Teacher" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Password *</label>
+                    <input required type="password" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="Min 6 characters" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password *</label>
+                    <input required type="password" value={addForm.confirmPassword} onChange={(e) => setAddForm({ ...addForm, confirmPassword: e.target.value })} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none transition-all focus:border-secondary/50 focus:ring-2 focus:ring-secondary/10" placeholder="Repeat password" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={addLoading} className="inline-flex items-center gap-2 rounded-xl bg-secondary px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60 shadow-sm">
+                    {addLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                    {addLoading ? "Creating..." : "Create Member"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
