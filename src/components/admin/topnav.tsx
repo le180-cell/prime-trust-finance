@@ -4,14 +4,32 @@ import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Search, Bell, Sun, Moon, Languages, User, Settings, LogOut, Menu,
+  DollarSign, UserPlus, MessageSquare, CreditCard,
 } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { formatDateTime, cn } from "@/lib/utils"
 
 interface TopnavProps {
   onSearchOpen: () => void
   onToggleSidebar?: () => void
 }
+
+interface AdminNotification {
+  id: string
+  title: string
+  message: string
+  type: string
+  createdAt: string
+  read: boolean
+}
+
+const notifIcons = {
+  loan: DollarSign,
+  member: UserPlus,
+  message: MessageSquare,
+  payment: CreditCard,
+} as const
 
 export default function Topnav({ onSearchOpen, onToggleSidebar }: TopnavProps) {
   const { theme, toggleTheme } = useTheme()
@@ -19,6 +37,8 @@ export default function Topnav({ onSearchOpen, onToggleSidebar }: TopnavProps) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
+  const [notifications, setNotifications] = useState<AdminNotification[]>([])
+  const [notifCount, setNotifCount] = useState(0)
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef = useRef<HTMLButtonElement>(null)
 
@@ -33,6 +53,16 @@ export default function Topnav({ onSearchOpen, onToggleSidebar }: TopnavProps) {
     }
     document.addEventListener("mousedown", handleClick)
     return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/admin/notifications")
+      .then((r) => r.json())
+      .then((data) => {
+        setNotifications(data.notifications || [])
+        setNotifCount(data.count || 0)
+      })
+      .catch(() => {})
   }, [])
 
   return (
@@ -74,9 +104,11 @@ export default function Topnav({ onSearchOpen, onToggleSidebar }: TopnavProps) {
             className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800 dark:hover:text-gray-300 transition-all active:scale-95"
           >
             <Bell className="h-[18px] w-[18px]" />
-            <span className="absolute -top-px -right-px flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
-              3
-            </span>
+            {notifCount > 0 && (
+              <span className="absolute -top-px -right-px flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
+                {notifCount > 9 ? "9+" : notifCount}
+              </span>
+            )}
           </button>
           <AnimatePresence>
             {notifOpen && (
@@ -87,11 +119,41 @@ export default function Topnav({ onSearchOpen, onToggleSidebar }: TopnavProps) {
                 transition={{ duration: 0.15 }}
                 className="absolute right-0 top-full mt-2 w-64 sm:w-72 rounded-2xl border border-gray-100 bg-white shadow-lg dark:bg-slate-900 dark:border-white/5 overflow-hidden"
               >
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{t.dashboard.notifications}</p>
+                  {notifCount > 0 && (
+                    <span className="text-xs text-gray-400">{notifCount} new</span>
+                  )}
                 </div>
-                <div className="p-3 text-center text-sm text-gray-400 dark:text-gray-500">
-                  {t.dashboard.noNotifications}
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-3 text-center text-sm text-gray-400 dark:text-gray-500">
+                      {t.dashboard.noNotifications}
+                    </div>
+                  ) : (
+                    notifications.slice(0, 10).map((n) => {
+                      const Icon = notifIcons[n.type as keyof typeof notifIcons] || Bell
+                      return (
+                        <div key={n.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <div className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-full shrink-0",
+                            n.type === "loan" ? "bg-amber-50 text-amber-600" :
+                            n.type === "member" ? "bg-emerald-50 text-emerald-600" :
+                            n.type === "message" ? "bg-blue-50 text-blue-600" :
+                            n.type === "payment" ? "bg-purple-50 text-purple-600" :
+                            "bg-gray-50 text-gray-500"
+                          )}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{n.title}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-0.5">{formatDateTime(n.createdAt)}</p>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </motion.div>
             )}
