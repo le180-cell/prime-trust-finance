@@ -108,6 +108,29 @@ function toInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
 }
 
+const typeNormalize: Record<string, string> = {
+  deposit: "Savings Deposit",
+  loan_payment: "Loan Payment",
+  penalty: "Penalty",
+  interest: "Interest",
+  registration_fee: "Registration Fee",
+  "Loan Payment": "Loan Payment",
+  "Savings Deposit": "Savings Deposit",
+}
+
+const methodNormalize: Record<string, string> = {
+  mobile: "Mobile Money",
+  cash: "Cash",
+  bank: "Bank",
+  card: "Card",
+  transfer: "Transfer",
+  Cash: "Cash",
+  Bank: "Bank",
+  "Mobile Money": "Mobile Money",
+  Card: "Card",
+  Transfer: "Transfer",
+}
+
 function mapPayment(p: ApiPayment): Payment {
   const name = toMemberName(p)
   return {
@@ -116,9 +139,9 @@ function mapPayment(p: ApiPayment): Payment {
     receiptNo: `RCP-${p.reference || `PAY-${String(p.id).padStart(4, "0")}`}`,
     memberName: name,
     memberInitials: toInitials(name),
-    type: p.type as Payment["type"],
+    type: (typeNormalize[p.type] || p.type) as Payment["type"],
     amount: p.amount,
-    method: (p.method as Payment["method"]) || "Cash",
+    method: (methodNormalize[p.method] || "Cash") as Payment["method"],
     reference: p.reference || "",
     date: p.paidAt?.split("T")[0] || "",
     status: p.status as Payment["status"],
@@ -158,7 +181,7 @@ export default function AdminPaymentsPage() {
     }
   }, [])
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (initialId?: number) => {
     try {
       const res = await fetch("/api/admin/members")
       if (!res.ok) throw new Error("Failed to fetch members")
@@ -169,11 +192,15 @@ export default function AdminPaymentsPage() {
         lastName: (m.lastName as string) || "",
       })).filter((m: MemberOption) => m.firstName || m.lastName)
       setMembers(list)
-      if (list.length > 0 && formMemberId === "") setFormMemberId(list[0].id)
+      if (initialId && list.some((m) => m.id === initialId)) {
+        setFormMemberId(initialId)
+      } else if (list.length > 0) {
+        setFormMemberId(list[0].id)
+      }
     } catch {
       // silent — members dropdown will just be empty
     }
-  }, [formMemberId])
+  }, [])
 
   useEffect(() => { fetchPayments(); fetchMembers() }, [fetchPayments, fetchMembers])
 
