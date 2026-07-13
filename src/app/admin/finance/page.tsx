@@ -151,12 +151,13 @@ function SkeletonState() {
   )
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ onRetry, msg }: { onRetry: () => void; msg?: string }) {
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" className="admin-card flex flex-col items-center justify-center py-20">
       <AlertTriangle className="h-14 w-14 text-red-300" />
       <p className="mt-4 text-lg font-medium text-gray-600">Failed to load financial data</p>
       <p className="mt-1 text-sm text-gray-400">Something went wrong. Please try again.</p>
+      {msg && <p className="mt-2 text-[10px] text-red-400/60 font-mono">{msg}</p>}
       <button
         onClick={onRetry}
         className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-light"
@@ -253,6 +254,7 @@ function ChartCard({ title, tabs, activeTab, onTabChange, children, summary }: C
 export default function AdminFinancePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
   const [range, setRange] = useState<Range>("30D")
   const [chartTabs, setChartTabs] = useState<Record<string, string>>({
     savings: "All",
@@ -271,9 +273,13 @@ export default function AdminFinancePage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(false)
+    setErrorMsg("")
     try {
       const res = await fetch("/api/admin/stats")
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `Server error (${res.status})`)
+      }
       const data = await res.json()
       const { stats, monthlyData: md } = data
 
@@ -317,8 +323,8 @@ export default function AdminFinancePage() {
       }
 
       if (mounted.current) setLoading(false)
-    } catch {
-      if (mounted.current) { setError(true); setLoading(false) }
+    } catch (e) {
+      if (mounted.current) { setError(true); setErrorMsg(e instanceof Error ? e.message : "Unknown error"); setLoading(false) }
     }
   }, [])
 
@@ -342,7 +348,7 @@ export default function AdminFinancePage() {
     { key: "Premium", label: "Premium" },
   ]
 
-  if (error) return <ErrorState onRetry={handleRetry} />
+  if (error) return <ErrorState onRetry={handleRetry} msg={errorMsg} />
   if (loading) return <SkeletonState />
 
   return (

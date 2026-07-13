@@ -202,6 +202,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
 
   const [statCardsConfig, setStatCardsConfig] = useState<StatCardConfig[]>([])
   const [loanRequests, setLoanRequests] = useState<any[]>([])
@@ -216,9 +217,13 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(false)
+    setErrorMsg("")
     try {
       const res = await fetch("/api/admin/stats")
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `Server error (${res.status})`)
+      }
       const data = await res.json()
       const { stats, recentMembers: rm, recentLoanRequests, recentPayments: rp, recentActivity, savingsGrowth, monthlyData } = data
 
@@ -295,8 +300,9 @@ export default function AdminDashboard() {
       })))
 
       setLoading(false)
-    } catch {
+    } catch (e) {
       setError(true)
+      setErrorMsg(e instanceof Error ? e.message : "Unknown error")
       setLoading(false)
     }
   }, [])
@@ -311,12 +317,13 @@ export default function AdminDashboard() {
     return (
       <div className="flex items-center justify-center py-20">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 px-6 py-6 text-center max-w-xs">
+          className="rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 px-6 py-6 text-center max-w-sm">
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
             <AlertTriangle className="h-5 w-5 text-red-500" />
           </div>
           <h2 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">Failed to load</h2>
-          <p className="text-xs text-red-500 dark:text-red-400/80 mb-3">Could not fetch dashboard data.</p>
+          <p className="text-xs text-red-500 dark:text-red-400/80 mb-1">Could not fetch dashboard data.</p>
+          {errorMsg && <p className="text-[10px] text-red-400/60 mb-3 font-mono">{errorMsg}</p>}
           <button onClick={handleRefresh}
             className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 active:scale-95 transition-all">
             <RefreshCw className="h-3.5 w-3.5" /> Retry
