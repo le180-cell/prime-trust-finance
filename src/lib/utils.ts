@@ -5,12 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency = "RWF") {
+export function formatCurrency(amount: number | null | undefined, currency = "RWF") {
+  const val = amount || 0
   return new Intl.NumberFormat("en-US", {
     style: "decimal",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount) + ` ${currency}`
+  }).format(val) + ` ${currency}`
 }
 
 export function formatDate(date: string | Date) {
