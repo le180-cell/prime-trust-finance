@@ -7,7 +7,19 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   try {
     const session = await getSession()
-    if (!session || session.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({
+        stats: {
+          totalUsers: 0, memberCount: 0, adminCount: 0,
+          pendingLoans: 0, activeLoans: 0, totalLoansAmount: 0,
+          totalSavings: 0, totalReceivables: 0, totalPenalties: 0,
+          totalPayments: 0, savingsAccountCount: 0, totalDeposits: 0,
+          unreadMessages: 0,
+        },
+        recentMembers: [], recentLoanRequests: [], recentPayments: [],
+        recentActivity: [], savingsGrowth: [], monthlyData: [],
+      })
+    }
 
     const memberCount = (await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'").get() as { count: number }).count
     const adminCount = (await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number }).count
