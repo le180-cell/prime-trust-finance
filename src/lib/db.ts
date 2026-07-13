@@ -704,11 +704,28 @@ async function seedData(db: DbWrapper) {
   for (const [name, rate, type, minBal, maxBal, active] of policies) await db.prepare("INSERT OR IGNORE INTO interest_policies (name, rate, type, minBalance, maxBalance, active) VALUES (?, ?, ?, ?, ?, ?)").run(name, rate, type, minBal, maxBal, active)
 }
 
+/* ─── Synchronous schema init (runs at module load) ─── */
+
+function initSchemaSync(d: DbWrapper): void {
+  d.execMany(createTableStatements)
+  migrateSchema(d)
+}
+
 /* ─── Init ─── */
 
 const globalForDb = globalThis as unknown as { db: DbWrapper }
 
-async function initDbInternal(d: DbWrapper): Promise<DbWrapper> {
+// Set globalForDb.db IMMEDIATELY with initial connection + schema (synchronous)
+const initialDb = (() => {
+  const useTurso = !!(process.env.TURSO_DB_URL)
+  const d = useTurso ? createTursoDb() : createLocalDb()
+  initSchemaSync(d)
+  return d
+})()
+globalForDb.db = initialDb
+
+// Async init runs in background — loads blob data, seeds data, reconnects if needed
+async function initDbAsync(d: DbWrapper): Promise<void> {
   const useTurso = !!(process.env.TURSO_DB_URL)
   const fs = require('fs')
 
@@ -719,32 +736,19 @@ async function initDbInternal(d: DbWrapper): Promise<DbWrapper> {
       if (loaded) {
         // Blob data written to /tmp/data.db — reopen connection to pick it up
         if (typeof d._reconnect === 'function') d._reconnect()
-        return d
+        return
       }
-      // First-ever startup — create fresh, seed, save to blob
-      await d.execMany(createTableStatements)
-      await migrateSchema(d)
+      // First-ever startup — fresh DB already has schema, just seed + save
       await seedData(d)
       await saveDbToBlob()
-      return d
+      return
     }
   }
 
-  await d.execMany(createTableStatements)
-  await migrateSchema(d)
   await seedData(d)
-  return d
 }
 
-// Set globalForDb.db IMMEDIATELY with initial connection (synchronous)
-const initialDb = (() => {
-  const useTurso = !!(process.env.TURSO_DB_URL)
-  return useTurso ? createTursoDb() : createLocalDb()
-})()
-globalForDb.db = initialDb
-
-// Async init runs in background — loads blob data, reconnects if needed
-initDbInternal(initialDb).catch((e) => { console.error('DB init error:', e) })
+initDbAsync(initialDb).catch((e) => { console.error('DB async init error:', e) })
 
 // Proxy: always reads from globalForDb.db so updates after blob reload are reflected
 export const db = new Proxy({} as DbWrapper, {
